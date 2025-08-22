@@ -4,6 +4,10 @@
  * Provides reactive state for loading indicators and progress messages.
  */
 
+export interface ProgressManagerDeps {
+  focusSearch: () => void
+}
+
 interface ProgressState {
   isLoading: boolean
   message: string
@@ -23,7 +27,9 @@ interface ProgressManager {
 }
 
 // Manager factory function
-export function createProgressManager(): ProgressManager {
+export function createProgressManager(
+  deps: ProgressManagerDeps
+): ProgressManager {
   const state = $state<ProgressState>({
     isLoading: false,
     message: '',
@@ -62,6 +68,7 @@ export function createProgressManager(): ProgressManager {
       state.isLoading = false
       state.message = ''
       state.error = null
+      deps.focusSearch()
     },
 
     setError(errorMessage: string) {

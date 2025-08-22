@@ -114,7 +114,9 @@ export function createAppCoordinator(deps: AppCoordinatorDeps): AppCoordinator {
     searchManager,
   })
 
-  const progressManager = createProgressManager()
+  const progressManager = createProgressManager({
+    focusSearch: () => focusManager.focusSearch(),
+  })
 
   const isLoading = $derived(searchManager.isLoading)
   const areHighlightsCleared = $derived(searchManager.areHighlightsCleared)
