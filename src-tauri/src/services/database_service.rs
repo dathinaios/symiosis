@@ -206,7 +206,11 @@ pub fn load_all_notes_into_sqlite_with_progress(
 }
 
 pub fn recreate_database() -> AppResult<()> {
-    eprintln!("Database discrepancy detected. Recreating database tables...");
+    log(
+        "DATABASE_RECREATE",
+        "Database discrepancy detected - recreating tables",
+        None,
+    );
 
     with_db_mut(|conn| {
         // Drop the existing table and recreate it
@@ -214,12 +218,14 @@ pub fn recreate_database() -> AppResult<()> {
 
         init_db(conn)?;
 
-        eprintln!("Fresh database table created. Performing full sync from filesystem...");
-
         // Perform a complete sync from filesystem
         load_all_notes_into_sqlite(conn)?;
 
-        eprintln!("Database recovery completed successfully.");
+        log(
+            "DATABASE_RECREATE_SUCCESS",
+            "Database recreated and synced from filesystem",
+            None,
+        );
         Ok(())
     })
 }
@@ -270,7 +276,6 @@ pub async fn recreate_database_with_progress(
                 Some(&e.to_string()),
             );
         }
-        eprintln!("Fresh database table created. Performing full sync from filesystem...");
 
         // Perform a complete sync from filesystem
         load_all_notes_into_sqlite(conn).map_err(|e| e.into())
@@ -303,11 +308,6 @@ pub async fn recreate_database_with_progress(
             "Failed to emit completion progress",
             Some(&e.to_string()),
         );
-    }
-
-    match &rebuild_result {
-        Ok(()) => eprintln!("Database rebuild completed successfully."),
-        Err(e) => eprintln!("Database rebuild failed: {}", e),
     }
 
     rebuild_result
