@@ -278,7 +278,11 @@ pub fn save_config(config: &AppConfig) -> AppResult<()> {
 
     fs::write(&config_path, toml_content)?;
 
-    println!("Config saved to: {}", config_path.display());
+    log(
+        "CONFIG",
+        "Config saved",
+        Some(&config_path.display().to_string()),
+    );
     Ok(())
 }
 

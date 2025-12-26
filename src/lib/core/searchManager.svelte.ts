@@ -6,6 +6,12 @@
 
 import type { createNoteService } from '../services/noteService.svelte'
 
+/** Minimum characters required before triggering a filtered search query */
+const MIN_SEARCH_QUERY_LENGTH = 3
+
+/** Debounce delay in ms before executing search after user stops typing */
+const SEARCH_DEBOUNCE_MS = 100
+
 interface SearchState {
   searchInput: string
   query: string
@@ -105,16 +111,16 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
       state.requestController?.abort()
       state.searchInput = value
 
-      if (value.length < 3) {
+      if (value.length < MIN_SEARCH_QUERY_LENGTH) {
         state.query = ''
         state.searchTimeout = setTimeout(async () => {
           await performSearch('')
-        }, 100)
+        }, SEARCH_DEBOUNCE_MS)
       } else {
         state.searchTimeout = setTimeout(async () => {
           state.query = state.searchInput
           await performSearch(state.searchInput)
-        }, 100)
+        }, SEARCH_DEBOUNCE_MS)
       }
     }
   }

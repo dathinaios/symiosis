@@ -28,7 +28,7 @@ pub fn save_current_frontmost_app() {
         if let Some(frontmost) = workspace.frontmostApplication() {
             let pid = frontmost.processIdentifier();
             let our_pid = std::process::id() as i32;
-            let mut lock = PREV_PID.lock().unwrap();
+            let mut lock = PREV_PID.lock().unwrap_or_else(|e| e.into_inner());
             if pid == our_pid {
                 *lock = None;
             } else {
@@ -63,7 +63,7 @@ pub fn hide_app_and_restore_previous(window: tauri::WebviewWindow) {
     app.hide(None);
 
     let prev_pid_opt = {
-        let mut lock = PREV_PID.lock().unwrap();
+        let mut lock = PREV_PID.lock().unwrap_or_else(|e| e.into_inner());
         lock.take()
     };
 

@@ -38,8 +38,7 @@ export interface EditorManager {
   readonly editingNoteName: string | null
   enterEditMode(
     noteName: string,
-    fallbackHtmlContent?: string,
-    noteContentElement?: HTMLElement
+    fallbackHtmlContent?: string
   ): Promise<void>
   exitEditMode(): string
   updateContent(newContent: string): void
@@ -66,8 +65,7 @@ export function createEditorManager(deps: EditorManagerDeps): EditorManager {
 
   async function enterEditMode(
     noteName: string,
-    fallbackHtmlContent?: string,
-    _noteContentElement?: HTMLElement
+    fallbackHtmlContent?: string
   ): Promise<void> {
     if (!validateNoteNameForEdit(noteName)) {
       return

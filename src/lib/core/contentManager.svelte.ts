@@ -6,6 +6,9 @@
 
 import { getHighlightedContent } from '../utils/contentHighlighting.svelte'
 
+/** Delay in ms before starting highlight navigation to allow DOM to settle */
+const HIGHLIGHT_NAVIGATION_DELAY_MS = 100
+
 export interface ContentManagerDeps {
   noteService: {
     getContent: (noteName: string) => Promise<string>
@@ -67,7 +70,7 @@ export function createContentManager(deps: ContentManagerDeps): ContentManager {
     if (noteContentElement && !deps.contentNavigationManager.hideHighlights) {
       setTimeout(() => {
         deps.contentNavigationManager.startHighlightNavigation()
-      }, 100)
+      }, HIGHLIGHT_NAVIGATION_DELAY_MS)
     }
   }
 

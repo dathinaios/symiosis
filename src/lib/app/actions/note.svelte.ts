@@ -104,11 +104,7 @@ export function createNoteActions(deps: NoteActionDeps): NoteActions {
   }
 
   async function enterEditMode(noteName: string): Promise<void> {
-    await editorManager.enterEditMode(
-      noteName,
-      contentManager.noteContent,
-      focusManager.noteContentElement ?? undefined
-    )
+    await editorManager.enterEditMode(noteName, contentManager.noteContent)
   }
 
   async function saveNote(): Promise<void> {
