@@ -124,17 +124,35 @@ fn handle_first_run_detection(app: &tauri::App) -> Result<(), Box<dyn std::error
 }
 
 fn handle_main_window_toggle(app_handle: tauri::AppHandle) {
+    let restore_previous_focus = app_handle
+        .try_state::<AppState>()
+        .map(|state| {
+            state
+                .config
+                .read()
+                .map(|config| config.interface.restore_previous_focus)
+                .unwrap_or(false)
+        })
+        .unwrap_or(false);
+
     match app_handle.get_webview_window("main") {
         Some(window) => {
             if window.is_visible().unwrap_or(false) && window.is_focused().unwrap_or(false) {
-                // Hide with proper focus restoration
-                utilities::mac_focus::hide_app_and_restore_previous(window);
+                if restore_previous_focus {
+                    // Hide and restore focus to the previously-frontmost app
+                    utilities::mac_focus::hide_app_and_restore_previous(window);
+                } else {
+                    // Standard hide behavior
+                    utilities::mac_focus::hide_app(window);
+                }
             } else if window.is_visible().unwrap_or(false) && !window.is_focused().unwrap_or(false)
             {
                 let _ = window.set_focus();
             } else {
-                // Save current frontmost app, then show and activate
-                utilities::mac_focus::save_current_frontmost_app();
+                if restore_previous_focus {
+                    // Save current frontmost app so we can restore it later
+                    utilities::mac_focus::save_current_frontmost_app();
+                }
                 utilities::mac_focus::show_app(window);
             }
         }

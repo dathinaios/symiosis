@@ -58,6 +58,8 @@ pub struct InterfaceConfig {
     pub always_on_top: bool,
     #[serde(default = "default_window_decorations")]
     pub window_decorations: bool,
+    #[serde(default)]
+    pub restore_previous_focus: bool,
     pub custom_ui_theme_path: Option<String>,
     pub custom_markdown_theme_path: Option<String>,
 }
@@ -146,6 +148,7 @@ impl Default for InterfaceConfig {
             md_render_code_theme: "gruvbox-dark-medium".to_string(),
             always_on_top: false,
             window_decorations: default_window_decorations(),
+            restore_previous_focus: false,
             custom_ui_theme_path: None,
             custom_markdown_theme_path: None,
         }

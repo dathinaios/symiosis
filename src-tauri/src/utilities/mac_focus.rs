@@ -52,6 +52,16 @@ pub fn show_app(window: tauri::WebviewWindow) {
     }
 }
 
+/// Hide this app without restoring focus to the previous app.
+#[cfg(target_os = "macos")]
+pub fn hide_app(window: tauri::WebviewWindow) {
+    let _ = window.hide();
+
+    let mtm = unsafe { MainThreadMarker::new_unchecked() };
+    let app = NSApplication::sharedApplication(mtm);
+    app.hide(None);
+}
+
 /// Hide this app and attempt to restore the previously-frontmost app.
 #[tauri::command]
 #[cfg(target_os = "macos")]
@@ -91,6 +101,11 @@ pub fn save_current_frontmost_app() {
 pub fn show_app(window: tauri::WebviewWindow) {
     let _ = window.show();
     let _ = window.set_focus();
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn hide_app(window: tauri::WebviewWindow) {
+    let _ = window.hide();
 }
 
 #[tauri::command]
