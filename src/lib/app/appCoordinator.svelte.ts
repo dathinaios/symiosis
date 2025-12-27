@@ -3,6 +3,12 @@
  * Central coordinator for app-wide state, actions, and effects.
  */
 
+/** Delay in ms before navigating to header after exiting edit mode */
+const HEADER_NAVIGATION_DELAY_MS = 100
+
+/** Delay in ms before showing hints after settings close on first run */
+const FIRST_RUN_HINTS_DELAY_MS = 300
+
 import { tick } from 'svelte'
 import { listen } from '@tauri-apps/api/event'
 import { createDialogManager } from '../core/dialogManager.svelte'
@@ -188,7 +194,7 @@ export function createAppCoordinator(
     if (exitHeaderText) {
       setTimeout(() => {
         contentNavigationManager.navigateToHeader(exitHeaderText)
-      }, 100)
+      }, HEADER_NAVIGATION_DELAY_MS)
     }
     focusManager.focusSearch()
   }
@@ -209,7 +215,7 @@ export function createAppCoordinator(
         })
         document.dispatchEvent(event)
         isFirstRun = false
-      }, 300)
+      }, FIRST_RUN_HINTS_DELAY_MS)
     }
   }
 

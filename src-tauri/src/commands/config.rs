@@ -1,5 +1,7 @@
 use tauri::{AppHandle, Manager};
 
+use crate::logging::log;
+
 use crate::config::{
     get_available_markdown_themes, get_available_ui_themes, load_config_from_content, EditorConfig,
     GeneralConfig, InterfaceConfig, PreferencesConfig, ShortcutsConfig,
@@ -42,7 +44,11 @@ pub fn save_config_content(content: &str) -> Result<(), String> {
     std::fs::write(&config_path, content)
         .map_err(|e| format!("Failed to write config file: {}", e))?;
 
-    println!("Config content saved to: {}", config_path.display());
+    log(
+        "CONFIG",
+        "Config content saved",
+        Some(&config_path.display().to_string()),
+    );
     Ok(())
 }
 

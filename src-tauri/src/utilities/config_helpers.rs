@@ -222,9 +222,13 @@ fn extract_theme_configuration(section: &toml::Value, config: &mut InterfaceConf
         if valid_themes.contains(&theme) {
             config.markdown_render_theme = theme.to_string();
         } else {
-            eprintln!(
-                "Warning: Invalid markdown_render_theme '{}'. Using default '{}'.",
-                theme, config.markdown_render_theme
+            log(
+                "CONFIG_VALIDATION",
+                &format!(
+                    "Invalid markdown_render_theme '{}'. Using default '{}'.",
+                    theme, config.markdown_render_theme
+                ),
+                None,
             );
         }
     }
@@ -234,9 +238,13 @@ fn extract_theme_configuration(section: &toml::Value, config: &mut InterfaceConf
         if valid_themes.contains(&theme) {
             config.md_render_code_theme = theme.to_string();
         } else {
-            eprintln!(
-                "Warning: Invalid md_render_code_theme '{}'. Using default '{}'.",
-                theme, config.md_render_code_theme
+            log(
+                "CONFIG_VALIDATION",
+                &format!(
+                    "Invalid md_render_code_theme '{}'. Using default '{}'.",
+                    theme, config.md_render_code_theme
+                ),
+                None,
             );
         }
     }
@@ -315,9 +323,13 @@ fn extract_editor_config(value: &toml::Value) -> EditorConfig {
             if valid_modes.contains(&mode) {
                 config.mode = mode.to_string();
             } else {
-                eprintln!(
-                    "Warning: Invalid editor mode '{}'. Using default '{}'.",
-                    mode, config.mode
+                log(
+                    "CONFIG_VALIDATION",
+                    &format!(
+                        "Invalid editor mode '{}'. Using default '{}'.",
+                        mode, config.mode
+                    ),
+                    None,
                 );
             }
         }
@@ -327,9 +339,13 @@ fn extract_editor_config(value: &toml::Value) -> EditorConfig {
             if valid_themes.contains(&theme) {
                 config.theme = theme.to_string();
             } else {
-                eprintln!(
-                    "Warning: Invalid editor theme '{}'. Using default '{}'.",
-                    theme, config.theme
+                log(
+                    "CONFIG_VALIDATION",
+                    &format!(
+                        "Invalid editor theme '{}'. Using default '{}'.",
+                        theme, config.theme
+                    ),
+                    None,
                 );
             }
         }
@@ -343,9 +359,13 @@ fn extract_editor_config(value: &toml::Value) -> EditorConfig {
             if size > 0 && size <= 16 {
                 config.tab_size = size;
             } else {
-                eprintln!(
-                    "Warning: Invalid tab_size {}. Using default {}.",
-                    size, config.tab_size
+                log(
+                    "CONFIG_VALIDATION",
+                    &format!(
+                        "Invalid tab_size {}. Using default {}.",
+                        size, config.tab_size
+                    ),
+                    None,
                 );
             }
         }
@@ -421,9 +441,13 @@ fn extract_preferences_config(value: &toml::Value) -> PreferencesConfig {
             if max_results > 0 && max_results <= 10000 {
                 config.max_search_results = max_results;
             } else {
-                eprintln!(
-                    "Warning: Invalid max_search_results {}. Using default {}.",
-                    max_results, config.max_search_results
+                log(
+                    "CONFIG_VALIDATION",
+                    &format!(
+                        "Invalid max_search_results {}. Using default {}.",
+                        max_results, config.max_search_results
+                    ),
+                    None,
                 );
             }
         }
