@@ -126,19 +126,26 @@ fn handle_first_run_detection(app: &tauri::App) -> Result<(), Box<dyn std::error
 fn handle_main_window_toggle(app_handle: tauri::AppHandle) {
     match app_handle.get_webview_window("main") {
         Some(window) => {
-            if window.is_visible().unwrap_or(false) && window.is_focused().unwrap_or(false) {
-                // Hide with proper focus restoration
+            let is_visible = window.is_visible().unwrap_or(false);
+            let is_focused = window.is_focused().unwrap_or(false);
+
+            if is_visible && is_focused {
+                // Window is visible and focused - hide and restore previous app
                 utilities::mac_focus::hide_app_and_restore_previous(window);
-            } else if window.is_visible().unwrap_or(false) && !window.is_focused().unwrap_or(false)
-            {
-                let _ = window.set_focus();
             } else {
-                // Save current frontmost app, then show and activate
+                // Window is either not visible, or visible but another app has focus.
+                // In both cases: save the current frontmost app, then show/activate.
+                //
+                // This fixes the bug where clicking away from Symiosis and then using
+                // the shortcut would restore the wrong app - now we save the currently
+                // focused app before taking focus back.
                 utilities::mac_focus::save_current_frontmost_app();
                 utilities::mac_focus::show_app(window);
             }
         }
         None => {
+            // Window doesn't exist - save current app before creating/showing
+            utilities::mac_focus::save_current_frontmost_app();
             if let Some(app_state) = app_handle.try_state::<AppState>() {
                 let _ = show_main_window(app_handle.clone(), app_state);
             }
