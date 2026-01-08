@@ -8,7 +8,11 @@
 
 ## Executive Summary
 
-This report identifies **Easy To Change (ETC)** and **Don't Repeat Yourself (DRY)** violations in the Symiosis codebase. Triple-checked findings reveal **4 major issues** requiring attention, ranked by severity and impact.
+This report identifies **Easy To Change (ETC)** and **Don't Repeat Yourself (DRY)** violations in the Symiosis codebase. Triple-checked findings reveal **7 issues** (4 backend, 3 frontend) requiring attention, ranked by severity and impact.
+
+---
+
+# BACKEND ISSUES (Rust)
 
 ---
 
@@ -231,35 +235,242 @@ pub fn remove_prefixed_dirs(parent: &Path, prefix: &str) -> Result<usize, std::i
 
 ---
 
-## Summary Table
-
-| Issue | Type | Severity | Files Affected | Duplication Count |
-|-------|------|----------|----------------|-------------------|
-| #1 Theme Lists | ETC | HIGH | 2 | 3 list types x 2 = 6 |
-| #2 Safety Check | DRY | MEDIUM | 1 | 9 repetitions |
-| #3 Lock Pattern | DRY | MEDIUM | 2 | 5 repetitions |
-| #4 Cleanup Logic | DRY | LOW | 3 | ~6 repetitions |
+# FRONTEND ISSUES (TypeScript/Svelte)
 
 ---
 
-## ETC Principle Reminder
+## Issue #5: Duplicated Dialog CSS Styles (DRY - HIGH SEVERITY)
 
-The **Easy To Change** principle states:
-> *"Good design is easier to change than bad design."*
+### Problem
+The `.dialog-overlay` and `.dialog` CSS styles are **duplicated verbatim** across **6 Svelte components**, totaling ~150 lines of duplicated CSS.
 
-The theme list duplication (Issue #1) is the most critical ETC violation because:
-1. Adding a new theme requires changes in **multiple files**
-2. The relationship between files is not obvious
-3. Changes are error-prone (easy to miss one location)
+### Evidence
+
+| Component | Lines | Duplication |
+|-----------|-------|-------------|
+| `src/lib/ui/DeleteDialog.svelte` | 94-119 | `.dialog-overlay`, `.dialog`, `.dialog h3`, `.dialog p` |
+| `src/lib/ui/ConfirmationDialog.svelte` | 92-117 | IDENTICAL styles |
+| `src/lib/ui/InputDialog.svelte` | 128-161 | IDENTICAL styles |
+| `src/lib/ui/VersionExplorer.svelte` | 255-280 | IDENTICAL styles |
+| `src/lib/ui/RecentlyDeleted.svelte` | 182-207 | IDENTICAL styles |
+| `src/lib/ui/SettingsPane.svelte` | 99-124 | IDENTICAL styles |
+
+### Duplicated CSS Pattern (appears 6 times)
+```css
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background-color: var(--theme-bg-secondary);
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  /* ... ~25 more identical lines */
+}
+```
+
+### Impact
+- Adding a design change requires modifying **6 files**
+- Inconsistencies can creep in (e.g., `rgba(0, 0, 0, 0.7)` vs `rgba(0, 0, 0, 0.5)` already differs between files)
+- ~150 lines of unnecessary code bloat
+
+### Recommendation
+Create a shared CSS file or use Svelte's global styles:
+
+**Option A: Global CSS file**
+```css
+/* src/lib/styles/dialog.css */
+.dialog-overlay { /* shared styles */ }
+.dialog { /* shared styles */ }
+```
+
+**Option B: Base Dialog Component**
+```svelte
+<!-- BaseDialog.svelte -->
+<div class="dialog-overlay" onclick={onOverlayClick}>
+  <div class="dialog">
+    <slot />
+  </div>
+</div>
+
+<style>
+  /* Shared styles here */
+</style>
+```
+
+---
+
+## Issue #6: Duplicated Default Config Values (ETC - HIGH SEVERITY)
+
+### Problem
+Default configuration values are **duplicated across 3 locations** (1 backend, 2 frontend), creating a severe ETC violation.
+
+### Evidence
+
+**Location 1: Rust Backend** - `src-tauri/src/config.rs:137-152`
+```rust
+impl Default for InterfaceConfig {
+    fn default() -> Self {
+        Self {
+            ui_theme: "gruvbox-dark".to_string(),
+            font_family: "Inter, sans-serif".to_string(),
+            font_size: 14,
+            markdown_render_theme: "modern-dark".to_string(),
+            md_render_code_theme: "gruvbox-dark-medium".to_string(),
+            // ...
+        }
+    }
+}
+```
+
+**Location 2: Frontend Service** - `src/lib/services/configService.svelte.ts:168-178`
+```typescript
+// Fallback defaults - DUPLICATED from backend
+return {
+  ui_theme: 'gruvbox-dark',
+  font_family: 'Inter, sans-serif',
+  font_size: 14,
+  markdown_render_theme: 'modern-dark',
+  md_render_code_theme: 'gruvbox-dark-medium',
+  // ...
+}
+```
+
+**Location 3: Frontend Manager** - `src/lib/core/configManager.svelte.ts:63-76`
+```typescript
+// SAME defaults duplicated again
+interface: {
+  ui_theme: 'gruvbox-dark',
+  font_family: 'Inter, sans-serif',
+  // ...
+}
+```
+
+### Impact
+- Changing a default value requires updates in **3 different files** across **2 languages**
+- High risk of defaults becoming inconsistent
+- Example: If you change the default theme to `"modern-dark"`, you must update:
+  1. `src-tauri/src/config.rs`
+  2. `src/lib/services/configService.svelte.ts`
+  3. `src/lib/core/configManager.svelte.ts`
+
+### Recommendation
+1. **Remove frontend fallbacks** - Trust the backend as the single source of truth
+2. **Or expose defaults via API** - Create a `get_default_config()` Tauri command
+
+```typescript
+// configService.svelte.ts - AFTER refactoring
+async function getInterfaceConfig(): Promise<InterfaceConfig> {
+  try {
+    return await invoke<InterfaceConfig>('get_interface_config')
+  } catch (e) {
+    // Fetch defaults from backend instead of hardcoding
+    return await invoke<InterfaceConfig>('get_default_interface_config')
+  }
+}
+```
+
+---
+
+## Issue #7: Duplicated Gruvbox Theme List in Frontend (DRY - MEDIUM SEVERITY)
+
+### Problem
+The gruvbox theme list appears in `configService.svelte.ts` duplicating the backend list.
+
+### Evidence
+
+**Frontend** - `src/lib/services/configService.svelte.ts:413-420`
+```typescript
+const gruvboxThemes = [
+  'gruvbox-dark-hard',
+  'gruvbox-dark-medium',
+  'gruvbox-dark-soft',
+  'gruvbox-light-hard',
+  'gruvbox-light-medium',
+  'gruvbox-light-soft',
+]
+```
+
+**Backend** - `src-tauri/src/utilities/config_helpers.rs:76-79`
+```rust
+vec![
+    "gruvbox-dark-hard",
+    "gruvbox-dark-medium",
+    "gruvbox-dark-soft",
+    // ... same list
+]
+```
+
+### Impact
+- Adding a new gruvbox variant requires frontend AND backend changes
+- Related to Issue #1 (theme list duplication)
+
+### Recommendation
+Expose theme metadata from backend:
+
+```typescript
+// Use API instead of hardcoded list
+const themeInfo = await invoke<ThemeMetadata>('get_theme_metadata', { theme })
+if (themeInfo.category === 'gruvbox') {
+  // Handle gruvbox path
+}
+```
+
+---
+
+# SUMMARY TABLES
+
+## All Issues by Severity
+
+| # | Issue | Layer | Type | Severity | Files Affected |
+|---|-------|-------|------|----------|----------------|
+| 1 | Theme Lists (Backend) | Rust | ETC | HIGH | 2 |
+| 5 | Dialog CSS Styles | Svelte | DRY | HIGH | 6 |
+| 6 | Default Config Values | Cross-layer | ETC | HIGH | 3 |
+| 2 | Safety Check Pattern | Rust | DRY | MEDIUM | 1 |
+| 3 | Lock Acquisition | Rust | DRY | MEDIUM | 2 |
+| 7 | Gruvbox Theme List | TypeScript | DRY | MEDIUM | 2 |
+| 4 | Cleanup Logic | Rust | DRY | LOW | 3 |
+
+## Duplication Statistics
+
+| Category | Duplicated Lines | Occurrences |
+|----------|------------------|-------------|
+| Dialog CSS | ~150 lines | 6 components |
+| Theme Lists | ~60 lines | 4 locations |
+| Config Defaults | ~40 lines | 3 locations |
+| Safety Check | ~4 lines | 9 functions |
+| Lock Pattern | ~6 lines | 5 functions |
+| Cleanup Logic | ~15 lines | 6 locations |
 
 ---
 
 ## Recommendations Priority
 
-1. **Immediate:** Fix Issue #1 (Theme Lists) - Highest impact on maintainability
-2. **Short-term:** Fix Issue #2 (Safety Check) - Reduces code noise significantly
-3. **Medium-term:** Fix Issue #3 (Lock Pattern) - Improves consistency
-4. **When convenient:** Fix Issue #4 (Cleanup Logic) - Nice to have
+### Immediate (High Impact)
+1. **Issue #6** - Default Config Values (Cross-layer ETC) - Highest risk of bugs
+2. **Issue #1** - Theme Lists Backend - Combine with Issue #7
+3. **Issue #5** - Dialog CSS - Quick win, large reduction
+
+### Short-term
+4. **Issue #2** - Safety Check Pattern - Easy macro extraction
+5. **Issue #7** - Frontend Theme List - Part of theme consolidation
+
+### Medium-term
+6. **Issue #3** - Lock Pattern - Improves consistency
+
+### When Convenient
+7. **Issue #4** - Cleanup Logic - Nice to have
 
 ---
 
@@ -267,8 +478,9 @@ The theme list duplication (Issue #1) is the most critical ETC violation because
 
 All findings were **triple-checked** using:
 - Direct file reads to verify exact line numbers
-- Grep searches to count occurrences
-- Cross-referencing between related files
+- Grep searches across both frontend and backend
+- CSS class pattern matching to verify identical styles
+- Cross-referencing config values between Rust and TypeScript
 - Verification of actual code duplication (not just similar patterns)
 
 **Report generated by Claude Code analysis on 2026-01-08**
