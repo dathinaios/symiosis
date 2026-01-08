@@ -8,9 +8,15 @@
 
 ## Executive Summary
 
-This report identifies **Easy To Change (ETC)** and **Don't Repeat Yourself (DRY)** violations in the Symiosis codebase. Triple-checked and verified findings reveal **8 issues** (5 backend, 3 frontend) plus a **critical implementation path problem** explaining why adding config options requires changes across many files.
+This report identifies **Easy To Change (ETC)**, **Don't Repeat Yourself (DRY)**, and **Orthogonality/Decoupling** issues in the Symiosis codebase. Triple-checked and verified findings reveal:
+
+- **8 ETC/DRY issues** (5 backend, 3 frontend)
+- **3 Orthogonality issues** (backend only - frontend is excellent)
+- **1 Critical implementation path problem** explaining why adding config options requires changes across many files
 
 **KEY FINDING:** Adding a single config option requires modifications in **up to 9 files** across 2 languages. This is the root cause of the "huge amount of changes" issue.
+
+**ORTHOGONALITY HIGHLIGHT:** Frontend architecture shows excellent decoupling through dependency injection with narrow interfaces. Backend has moderate coupling issues in the core and config modules.
 
 ---
 
@@ -363,8 +369,11 @@ const gruvboxThemes = [
 | Short-term | 1 | Theme Lists (partial) | ETC | MEDIUM |
 | Short-term | 3 | Safety Check Pattern | DRY | MEDIUM |
 | Short-term | 8 | Frontend Theme List | DRY | MEDIUM |
+| Short-term | 9 | Layering Violation (core→services) | Orthogonality | MEDIUM |
 | Medium-term | 4 | Lock Pattern | DRY | MEDIUM |
 | When convenient | 5 | Cleanup Logic | DRY | LOW |
+| When convenient | 10 | AppState God Object | Orthogonality | LOW |
+| When convenient | 11 | Config Module Tight Coupling | Orthogonality | LOW |
 
 ## Root Cause Analysis
 
@@ -381,6 +390,173 @@ The "huge amount of changes" when adding config options is caused by:
 2. **Code Generation** - Generate Rust structs, TS interfaces, defaults
 3. **API-First Defaults** - Frontend fetches defaults from backend, no hardcoding
 4. **Shared Validation** - Single validation definition, used by both layers
+
+---
+
+# ORTHOGONALITY & DECOUPLING ANALYSIS
+
+---
+
+## Frontend Architecture: EXCELLENT ✓
+
+The frontend managers demonstrate **excellent orthogonality** through consistent use of dependency injection with narrow interfaces.
+
+### Pattern Used
+Each manager:
+1. Defines an interface specifying **only** what it needs from dependencies
+2. Receives dependencies at creation time (constructor injection)
+3. Has no direct imports from other managers
+
+### Evidence
+
+**FocusManager** - Zero dependencies (completely standalone):
+```typescript
+// src/lib/core/focusManager.svelte.ts:35
+export function createFocusManager(): FocusManager {
+  // No deps parameter - fully independent
+}
+```
+
+**SearchManager** - Narrow interface for dependencies:
+```typescript
+// src/lib/core/searchManager.svelte.ts:23-31
+interface SearchManagerDeps {
+  noteService: ReturnType<typeof createNoteService>
+  progressManager: {
+    readonly isLoading: boolean
+    start(message: string, type?: 'subtle' | 'modal'): void
+    complete(): void
+    setError(errorMessage: string): void
+  }
+}
+```
+
+**ContentManager** - Only sees what it needs:
+```typescript
+// src/lib/core/contentManager.svelte.ts:12-28
+export interface ContentManagerDeps {
+  noteService: { getContent: (noteName: string) => Promise<string> }
+  searchManager: { readonly query: string; executeSearch(query: string): Promise<string[]> }
+  focusManager: { readonly noteContentElement: HTMLElement | null }
+  contentNavigationManager: { ... }
+}
+```
+
+### Assessment
+- **Interface Segregation**: Each manager only sees the methods it needs
+- **Dependency Inversion**: Dependencies are abstract interfaces, not concrete implementations
+- **No Circular Dependencies**: Clean unidirectional dependency flow
+- **Easy to Test**: Dependencies can be easily mocked
+
+---
+
+## Backend Architecture: MODERATE ISSUES
+
+### Issue #9: Layering Violation (MEDIUM SEVERITY)
+
+**Problem:** `core/state.rs` directly calls a function from `services/database_service.rs`, violating the expected layer hierarchy.
+
+**Evidence:**
+```rust
+// src-tauri/src/core/state.rs:88
+fn new_with_recovery(config: AppConfig) -> AppResult<Self> {
+    // ...
+    crate::services::database_service::recreate_database(&state)?;  // ← VIOLATION
+}
+```
+
+**Expected Layer Hierarchy:**
+```
+commands (top) → services → utilities → core (bottom)
+```
+
+Dependencies should flow **down** the hierarchy, but here `core` depends on `services`.
+
+**Impact:**
+- Creates a conceptual circular dependency (services→core→services)
+- Makes `core` harder to test in isolation
+- Couples core initialization to database service implementation
+
+**Recommendation:**
+Pass a recovery function as a parameter or use a trait for database operations:
+```rust
+impl AppState {
+    pub fn new_with_recovery<F>(config: AppConfig, recover_fn: F) -> AppResult<Self>
+    where F: FnOnce(&Self) -> AppResult<()>
+    { ... }
+}
+```
+
+---
+
+### Issue #10: AppState "God Object" Pattern (LOW SEVERITY)
+
+**Problem:** `AppState` bundles multiple unrelated concerns into a single struct.
+
+**Evidence:**
+```rust
+// src-tauri/src/core/state.rs:5-11
+pub struct AppState {
+    pub config: Arc<RwLock<AppConfig>>,
+    pub was_first_run: Arc<AtomicBool>,
+    pub programmatic_operation_in_progress: Arc<AtomicBool>,
+    pub database_manager: Arc<Mutex<DatabaseManager>>,
+    pub database_rebuild_lock: Arc<RwLock<()>>,
+}
+```
+
+**Impact:**
+- Every component that needs any state must depend on the entire `AppState`
+- Changes to one concern (e.g., database) affect all consumers
+- Makes it harder to reason about what state each component actually needs
+
+**Recommendation:**
+Consider splitting into focused state containers:
+- `ConfigState` for configuration
+- `DatabaseState` for database-related state
+- `AppFlags` for boolean flags
+
+---
+
+### Issue #11: Config Module Tight Coupling (LOW SEVERITY)
+
+**Problem:** The config-related modules have bidirectional imports creating tight coupling.
+
+**Evidence:**
+```rust
+// config.rs imports from utilities
+use crate::utilities::config_helpers::{...};
+use crate::utilities::paths::{...};
+
+// utilities/config_helpers.rs imports from config
+use crate::config::{EditorConfig, GeneralConfig, InterfaceConfig, ...};
+
+// utilities/validation.rs imports from config
+use crate::config::{parse_shortcut, AppConfig, ...};
+```
+
+**Assessment:**
+This is technically valid Rust (type imports work fine), but:
+- These three files form a tightly coupled "config cluster"
+- Changes to any require understanding all three
+- Testing one in isolation is difficult
+
+**Recommendation:**
+Define config types in a separate `config/types.rs` that has no dependencies on utilities.
+
+---
+
+## Summary of Orthogonality Findings
+
+| Area | Assessment | Issues |
+|------|------------|--------|
+| **Frontend** | ✅ Excellent | None - DI pattern with narrow interfaces |
+| **Backend Core** | ⚠️ Moderate | Layering violation, God object pattern |
+| **Backend Config** | ⚠️ Moderate | Tight coupling between 3 files |
+| **Backend Services** | ✅ Good | Clean separation, dependencies flow correctly |
+| **Backend Commands** | ✅ Good | Thin wrappers that delegate appropriately |
+
+**Overall:** The orthogonality issues are less severe than the ETC/DRY issues. The layering violation (#9) is the most significant as it creates an unexpected dependency direction.
 
 ---
 
