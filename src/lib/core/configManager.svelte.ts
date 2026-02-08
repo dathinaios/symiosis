@@ -1,5 +1,4 @@
 import { listen } from '@tauri-apps/api/event'
-import { configService } from '../services/configService.svelte'
 import type {
   AppConfig,
   GeneralConfig,
@@ -8,6 +7,29 @@ import type {
   ShortcutsConfig,
   PreferencesConfig,
 } from '../types/config'
+
+export interface ConfigManagerDeps {
+  configService: {
+    refreshCache(): Promise<void>
+    getGeneralConfig(): Promise<GeneralConfig>
+    getInterfaceConfig(): Promise<InterfaceConfig>
+    getEditorConfig(): Promise<EditorConfig>
+    getShortcutsConfig(): Promise<ShortcutsConfig>
+    getPreferencesConfig(): Promise<PreferencesConfig>
+    getAvailableThemes(): Promise<{
+      ui_themes: string[]
+      markdown_themes: string[]
+    }>
+    loadTheme(
+      theme: string,
+      validUIThemes?: string[],
+      customPath?: string
+    ): Promise<void>
+    loadMarkdownTheme(theme: string, customPath?: string): Promise<void>
+    loadHighlightJSTheme(theme: string): Promise<void>
+    initDefaults(): Promise<void>
+  }
+}
 
 interface ConfigState {
   notesDirectory: string
@@ -46,7 +68,7 @@ export interface ConfigManager {
   loadHighlightJSTheme(theme: string): Promise<void>
 }
 
-export function createConfigManager(): ConfigManager {
+export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
   const state = $state<ConfigState>({
     notesDirectory: '',
     globalShortcut: '',
@@ -108,7 +130,7 @@ export function createConfigManager(): ConfigManager {
 
   async function fetchAvailableThemes(): Promise<void> {
     try {
-      const themes = await configService.getAvailableThemes()
+      const themes = await deps.configService.getAvailableThemes()
       validUIThemes = themes.ui_themes
     } catch (error) {
       console.warn('Failed to fetch available themes, using defaults:', error)
@@ -156,7 +178,7 @@ export function createConfigManager(): ConfigManager {
         config.interface.custom_ui_theme_path !==
           state.interface.custom_ui_theme_path
       ) {
-        configService.loadTheme(
+        deps.configService.loadTheme(
           config.interface.ui_theme,
           validUIThemes,
           config.interface.custom_ui_theme_path
@@ -167,13 +189,13 @@ export function createConfigManager(): ConfigManager {
         config.interface.custom_markdown_theme_path !==
           state.interface.custom_markdown_theme_path
       ) {
-        configService.loadMarkdownTheme(
+        deps.configService.loadMarkdownTheme(
           config.interface.markdown_render_theme,
           config.interface.custom_markdown_theme_path
         )
       }
       if (config.interface.md_render_code_theme !== previousCodeTheme) {
-        configService.loadHighlightJSTheme(
+        deps.configService.loadHighlightJSTheme(
           config.interface.md_render_code_theme
         )
       }
@@ -194,11 +216,11 @@ export function createConfigManager(): ConfigManager {
       shortcutsConfig,
       preferencesConfig,
     ] = await Promise.all([
-      configService.getGeneralConfig(),
-      configService.getInterfaceConfig(),
-      configService.getEditorConfig(),
-      configService.getShortcutsConfig(),
-      configService.getPreferencesConfig(),
+      deps.configService.getGeneralConfig(),
+      deps.configService.getInterfaceConfig(),
+      deps.configService.getEditorConfig(),
+      deps.configService.getShortcutsConfig(),
+      deps.configService.getPreferencesConfig(),
     ])
 
     return {
@@ -226,16 +248,16 @@ export function createConfigManager(): ConfigManager {
 
   async function setupThemes(interfaceConfig: InterfaceConfig): Promise<void> {
     applyInterfaceConfig(interfaceConfig)
-    await configService.loadTheme(
+    await deps.configService.loadTheme(
       interfaceConfig.ui_theme,
       validUIThemes,
       interfaceConfig.custom_ui_theme_path
     )
-    await configService.loadMarkdownTheme(
+    await deps.configService.loadMarkdownTheme(
       interfaceConfig.markdown_render_theme,
       interfaceConfig.custom_markdown_theme_path
     )
-    await configService.loadHighlightJSTheme(
+    await deps.configService.loadHighlightJSTheme(
       interfaceConfig.md_render_code_theme
     )
     state.isThemeInitialized = true
@@ -259,7 +281,7 @@ export function createConfigManager(): ConfigManager {
     state.error = null
 
     try {
-      await configService.initDefaults()
+      await deps.configService.initDefaults()
       const configs = await loadAllConfigs()
       await fetchAvailableThemes()
 
@@ -278,7 +300,7 @@ export function createConfigManager(): ConfigManager {
   }
 
   async function refreshConfigsAndThemes(): Promise<void> {
-    await configService.refreshCache()
+    await deps.configService.refreshCache()
 
     const configs = await loadAllConfigs()
     updateStateWithConfigs(configs)
@@ -405,9 +427,9 @@ export function createConfigManager(): ConfigManager {
     cleanup,
     forceRefresh,
     loadTheme: (theme: string, customPath?: string) =>
-      configService.loadTheme(theme, validUIThemes, customPath),
+      deps.configService.loadTheme(theme, validUIThemes, customPath),
     loadMarkdownTheme: (theme: string, customPath?: string) =>
-      configService.loadMarkdownTheme(theme, customPath),
-    loadHighlightJSTheme: configService.loadHighlightJSTheme,
+      deps.configService.loadMarkdownTheme(theme, customPath),
+    loadHighlightJSTheme: deps.configService.loadHighlightJSTheme,
   }
 }

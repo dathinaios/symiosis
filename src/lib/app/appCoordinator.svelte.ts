@@ -127,7 +127,9 @@ export function createAppCoordinator(
     focusSearch: () => focusManager.focusSearch(),
   })
 
-  const configManager = createConfigManager()
+  const configManager = createConfigManager({
+    configService,
+  })
 
   const contentManager = createContentManager({
     noteService,

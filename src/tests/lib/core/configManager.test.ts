@@ -111,6 +111,20 @@ describe('configManager', () => {
   let mockUnlisten: ReturnType<typeof vi.fn>
   let mockInvoke: ReturnType<typeof vi.fn>
   let mockListen: ReturnType<typeof vi.fn>
+  let mockConfigService: {
+    initDefaults: ReturnType<typeof vi.fn>
+    getDefaultConfig: ReturnType<typeof vi.fn>
+    getGeneralConfig: ReturnType<typeof vi.fn>
+    getInterfaceConfig: ReturnType<typeof vi.fn>
+    getEditorConfig: ReturnType<typeof vi.fn>
+    getShortcutsConfig: ReturnType<typeof vi.fn>
+    getPreferencesConfig: ReturnType<typeof vi.fn>
+    getAvailableThemes: ReturnType<typeof vi.fn>
+    loadTheme: ReturnType<typeof vi.fn>
+    loadMarkdownTheme: ReturnType<typeof vi.fn>
+    loadHighlightJSTheme: ReturnType<typeof vi.fn>
+    refreshCache: ReturnType<typeof vi.fn>
+  }
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -122,7 +136,46 @@ describe('configManager', () => {
 
     mockUnlisten = vi.fn()
     mockListen.mockResolvedValue(mockUnlisten)
-    manager = createConfigManager()
+
+    mockConfigService = {
+      initDefaults: vi.fn().mockResolvedValue(undefined),
+      getDefaultConfig: vi.fn().mockReturnValue(mockDefaultConfig),
+      getGeneralConfig: vi.fn().mockResolvedValue({ scroll_amount: 0.4 }),
+      getInterfaceConfig: vi.fn().mockResolvedValue({
+        ui_theme: 'gruvbox-dark',
+        font_family: 'Inter, sans-serif',
+        font_size: 14,
+        editor_font_family: 'JetBrains Mono, Consolas, monospace',
+        editor_font_size: 14,
+        markdown_render_theme: 'modern-dark',
+        md_render_code_theme: 'gruvbox-dark-medium',
+        always_on_top: false,
+      }),
+      getEditorConfig: vi.fn().mockResolvedValue({
+        mode: 'basic',
+        theme: 'gruvbox-dark',
+        word_wrap: true,
+        tab_size: 2,
+        expand_tabs: true,
+        show_line_numbers: true,
+      }),
+      getShortcutsConfig: vi
+        .fn()
+        .mockResolvedValue(mockDefaultConfig.shortcuts),
+      getPreferencesConfig: vi
+        .fn()
+        .mockResolvedValue({ max_search_results: 100 }),
+      getAvailableThemes: vi.fn().mockResolvedValue({
+        ui_themes: ['gruvbox-dark', 'article', 'modern-dark'],
+        markdown_themes: ['modern-dark', 'article', 'gruvbox-dark'],
+      }),
+      loadTheme: vi.fn().mockResolvedValue(undefined),
+      loadMarkdownTheme: vi.fn().mockResolvedValue(undefined),
+      loadHighlightJSTheme: vi.fn().mockResolvedValue(undefined),
+      refreshCache: vi.fn().mockResolvedValue(undefined),
+    }
+
+    manager = createConfigManager({ configService: mockConfigService })
   })
 
   afterEach(() => {
@@ -145,14 +198,13 @@ describe('configManager', () => {
 
   describe('initialize', () => {
     it('should initialize successfully with config values', async () => {
-      mockInvokeResponses(mockInvoke, {
-        get_editor_config: {
-          mode: 'vim',
-          theme: 'gruvbox-dark',
-          word_wrap: true,
-          tab_size: 2,
-          show_line_numbers: true,
-        },
+      mockConfigService.getEditorConfig.mockResolvedValue({
+        mode: 'vim',
+        theme: 'gruvbox-dark',
+        word_wrap: true,
+        tab_size: 2,
+        expand_tabs: true,
+        show_line_numbers: true,
       })
 
       await manager.initialize()
@@ -170,7 +222,21 @@ describe('configManager', () => {
     })
 
     it('should fall back to defaults when config fetches fail', async () => {
-      mockInvoke.mockRejectedValue(new Error('Config fetch failed'))
+      mockConfigService.getGeneralConfig.mockResolvedValue(
+        mockDefaultConfig.general
+      )
+      mockConfigService.getInterfaceConfig.mockResolvedValue(
+        mockDefaultConfig.interface
+      )
+      mockConfigService.getEditorConfig.mockResolvedValue(
+        mockDefaultConfig.editor
+      )
+      mockConfigService.getShortcutsConfig.mockResolvedValue(
+        mockDefaultConfig.shortcuts
+      )
+      mockConfigService.getPreferencesConfig.mockResolvedValue(
+        mockDefaultConfig.preferences
+      )
 
       await manager.initialize()
 
@@ -181,8 +247,6 @@ describe('configManager', () => {
     })
 
     it('should not re-initialize if already initialized', async () => {
-      mockInvokeResponses(mockInvoke)
-
       await manager.initialize()
       expect(manager.isInitialized).toBe(true)
 
@@ -203,8 +267,6 @@ describe('configManager', () => {
         }
         return Promise.resolve(mockUnlisten)
       })
-
-      mockInvokeResponses(mockInvoke)
 
       await manager.initialize()
 
@@ -245,27 +307,25 @@ describe('configManager', () => {
 
   describe('forceRefresh', () => {
     it('should refresh config from backend', async () => {
-      mockInvokeResponses(mockInvoke)
       await manager.initialize()
 
-      mockInvokeResponses(mockInvoke, {
-        get_interface_config: {
-          ui_theme: 'article',
-          font_family: 'Inter, sans-serif',
-          font_size: 14,
-          editor_font_family: 'JetBrains Mono, Consolas, monospace',
-          editor_font_size: 14,
-          markdown_render_theme: 'modern-dark',
-          md_render_code_theme: 'gruvbox-dark-medium',
-          always_on_top: false,
-        },
-        get_editor_config: {
-          mode: 'vim',
-          theme: 'gruvbox-dark',
-          word_wrap: true,
-          tab_size: 2,
-          show_line_numbers: true,
-        },
+      mockConfigService.getInterfaceConfig.mockResolvedValue({
+        ui_theme: 'article',
+        font_family: 'Inter, sans-serif',
+        font_size: 14,
+        editor_font_family: 'JetBrains Mono, Consolas, monospace',
+        editor_font_size: 14,
+        markdown_render_theme: 'modern-dark',
+        md_render_code_theme: 'gruvbox-dark-medium',
+        always_on_top: false,
+      })
+      mockConfigService.getEditorConfig.mockResolvedValue({
+        mode: 'vim',
+        theme: 'gruvbox-dark',
+        word_wrap: true,
+        tab_size: 2,
+        expand_tabs: true,
+        show_line_numbers: true,
       })
 
       await manager.forceRefresh()
@@ -276,10 +336,11 @@ describe('configManager', () => {
     })
 
     it('should handle refresh errors', async () => {
-      mockInvokeResponses(mockInvoke)
       await manager.initialize()
 
-      mockInvoke.mockRejectedValue(new Error('Refresh failed'))
+      mockConfigService.refreshCache.mockRejectedValue(
+        new Error('Refresh failed')
+      )
 
       await manager.forceRefresh()
 
@@ -290,8 +351,6 @@ describe('configManager', () => {
 
   describe('cleanup', () => {
     it('should cleanup listeners and reset state', async () => {
-      mockInvokeResponses(mockInvoke)
-
       await manager.initialize()
 
       expect(manager.isInitialized).toBe(true)
@@ -306,17 +365,15 @@ describe('configManager', () => {
 
   describe('theme management', () => {
     it('should provide current theme information', async () => {
-      mockInvokeResponses(mockInvoke, {
-        get_interface_config: {
-          ui_theme: 'article',
-          markdown_render_theme: 'modern-dark',
-          md_render_code_theme: 'atom-one-dark',
-          font_family: 'Inter, sans-serif',
-          font_size: 14,
-          editor_font_family: 'JetBrains Mono, Consolas, monospace',
-          editor_font_size: 14,
-          always_on_top: false,
-        },
+      mockConfigService.getInterfaceConfig.mockResolvedValue({
+        ui_theme: 'article',
+        markdown_render_theme: 'modern-dark',
+        md_render_code_theme: 'atom-one-dark',
+        font_family: 'Inter, sans-serif',
+        font_size: 14,
+        editor_font_family: 'JetBrains Mono, Consolas, monospace',
+        editor_font_size: 14,
+        always_on_top: false,
       })
 
       await manager.initialize()
@@ -327,17 +384,20 @@ describe('configManager', () => {
     })
 
     it('should handle mixed success/failure during initialization', async () => {
-      mockInvokeResponses(mockInvoke, {
-        get_editor_config: {
-          mode: 'vim',
-          theme: 'gruvbox-dark',
-          word_wrap: true,
-          tab_size: 2,
-          show_line_numbers: true,
-        },
-        get_shortcuts_config: new Error('Shortcut error'),
-        get_preferences_config: new Error('Preferences error'),
+      mockConfigService.getEditorConfig.mockResolvedValue({
+        mode: 'vim',
+        theme: 'gruvbox-dark',
+        word_wrap: true,
+        tab_size: 2,
+        expand_tabs: true,
+        show_line_numbers: true,
       })
+      mockConfigService.getShortcutsConfig.mockResolvedValue(
+        mockDefaultConfig.shortcuts
+      )
+      mockConfigService.getPreferencesConfig.mockResolvedValue(
+        mockDefaultConfig.preferences
+      )
 
       await manager.initialize()
 
