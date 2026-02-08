@@ -28,6 +28,8 @@ export interface ConfigManagerDeps {
       markdown_themes: string[]
     }>
     loadCustomThemeFile(path: string): Promise<string>
+    getConfigContent(): Promise<string>
+    saveConfigContent(content: string): Promise<void>
     initDefaults(): Promise<void>
   }
 }
@@ -44,6 +46,9 @@ interface ConfigState {
   error: string | null
   isInitialized: boolean
   isThemeInitialized: boolean
+  isVisible: boolean
+  content: string
+  lastSaved: number
 }
 
 export interface ConfigManager {
@@ -61,12 +66,19 @@ export interface ConfigManager {
   readonly currentUITheme: string
   readonly currentMarkdownTheme: string
   readonly currentCodeTheme: string
+  readonly isVisible: boolean
+  content: string
+  readonly lastSaved: number
   initialize(): Promise<void>
   cleanup(): void
   forceRefresh(): Promise<void>
   loadTheme(theme: string, customPath?: string): Promise<void>
   loadMarkdownTheme(theme: string, customPath?: string): Promise<void>
   loadHighlightJSTheme(theme: string): Promise<void>
+  openPane(): Promise<void>
+  closePane(): void
+  updateContent(content: string): void
+  saveConfig(): Promise<{ success: boolean; error?: string }>
 }
 
 export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
@@ -123,6 +135,9 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
     error: null,
     isInitialized: false,
     isThemeInitialized: false,
+    isVisible: false,
+    content: '',
+    lastSaved: 0,
   })
 
   let unlistenConfigChanged: (() => void) | null = null
@@ -338,6 +353,50 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
     state.isThemeInitialized = false
   }
 
+  async function openPane(): Promise<void> {
+    state.isLoading = true
+    state.error = null
+    try {
+      const content = await deps.configService.getConfigContent()
+      state.content = content
+      state.isVisible = true
+    } catch (e) {
+      state.error = `Failed to load config: ${e}`
+      console.error('Failed to load config:', e)
+    } finally {
+      state.isLoading = false
+    }
+  }
+
+  function closePane(): void {
+    state.isVisible = false
+    state.content = ''
+    state.error = null
+  }
+
+  function updateContent(content: string): void {
+    state.content = content
+  }
+
+  async function saveConfig(): Promise<{ success: boolean; error?: string }> {
+    state.isLoading = true
+    state.error = null
+    try {
+      await deps.configService.saveConfigContent(state.content)
+      await deps.configService.refreshCache()
+      state.lastSaved = Date.now()
+      closePane()
+      return { success: true }
+    } catch (e) {
+      const error = `Failed to save config: ${e}`
+      state.error = error
+      console.error('Failed to save config:', e)
+      return { success: false, error }
+    } finally {
+      state.isLoading = false
+    }
+  }
+
   return {
     // Reactive getters following existing manager patterns
     get notesDirectory() {
@@ -396,6 +455,22 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
       return state.interface.md_render_code_theme
     },
 
+    get isVisible() {
+      return state.isVisible
+    },
+
+    get content() {
+      return state.content
+    },
+
+    set content(value: string) {
+      state.content = value
+    },
+
+    get lastSaved() {
+      return state.lastSaved
+    },
+
     initialize,
     cleanup,
     forceRefresh,
@@ -408,5 +483,9 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
       await loadMarkdownThemeUtil(theme, customCss)
     },
     loadHighlightJSTheme: loadHighlightJSThemeUtil,
+    openPane,
+    closePane,
+    updateContent,
+    saveConfig,
   }
 }

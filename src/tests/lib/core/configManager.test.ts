@@ -181,6 +181,8 @@ describe('configManager', () => {
         markdown_themes: ['modern-dark', 'article', 'gruvbox-dark'],
       }),
       loadCustomThemeFile: vi.fn().mockResolvedValue(''),
+      getConfigContent: vi.fn().mockResolvedValue('notes_directory = "/test"'),
+      saveConfigContent: vi.fn().mockResolvedValue(undefined),
       refreshCache: vi.fn().mockResolvedValue(undefined),
     }
 
@@ -412,6 +414,97 @@ describe('configManager', () => {
 
       expect(manager.editor.mode).toBe('vim')
       expect(manager.interface.markdown_render_theme).toBe('modern-dark')
+    })
+  })
+
+  describe('settings pane', () => {
+    beforeEach(async () => {
+      await manager.initialize()
+    })
+
+    it('should open pane and load content', async () => {
+      const configContent = 'notes_directory = "/custom"'
+      mockConfigService.getConfigContent.mockResolvedValue(configContent)
+
+      await manager.openPane()
+
+      expect(mockConfigService.getConfigContent).toHaveBeenCalled()
+      expect(manager.content).toBe(configContent)
+      expect(manager.isVisible).toBe(true)
+      expect(manager.isLoading).toBe(false)
+      expect(manager.error).toBeNull()
+    })
+
+    it('should close pane and reset content', async () => {
+      await manager.openPane()
+      expect(manager.isVisible).toBe(true)
+
+      manager.closePane()
+
+      expect(manager.isVisible).toBe(false)
+      expect(manager.content).toBe('')
+      expect(manager.error).toBeNull()
+    })
+
+    it('should update content', () => {
+      manager.updateContent('new content')
+      expect(manager.content).toBe('new content')
+    })
+
+    it('should support content getter/setter', () => {
+      manager.content = 'test content'
+      expect(manager.content).toBe('test content')
+    })
+
+    it('should save config and close pane', async () => {
+      await manager.openPane()
+      manager.content = 'updated content'
+
+      const result = await manager.saveConfig()
+
+      expect(result.success).toBe(true)
+      expect(mockConfigService.saveConfigContent).toHaveBeenCalledWith(
+        'updated content'
+      )
+      expect(mockConfigService.refreshCache).toHaveBeenCalled()
+      expect(manager.isVisible).toBe(false)
+      expect(manager.content).toBe('')
+    })
+
+    it('should handle save errors', async () => {
+      await manager.openPane()
+      manager.content = 'test content'
+      mockConfigService.saveConfigContent.mockRejectedValue(
+        new Error('Save failed')
+      )
+
+      const result = await manager.saveConfig()
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('Failed to save config')
+      expect(manager.error).toContain('Failed to save config')
+    })
+
+    it('should update lastSaved timestamp on successful save', async () => {
+      const beforeSave = manager.lastSaved
+
+      await manager.openPane()
+      manager.content = 'test'
+
+      await manager.saveConfig()
+
+      expect(manager.lastSaved).toBeGreaterThan(beforeSave)
+    })
+
+    it('should handle openPane errors', async () => {
+      mockConfigService.getConfigContent.mockRejectedValue(
+        new Error('Load failed')
+      )
+
+      await manager.openPane()
+
+      expect(manager.error).toContain('Failed to load config')
+      expect(manager.isVisible).toBe(false)
     })
   })
 })
