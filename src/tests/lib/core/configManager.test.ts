@@ -451,5 +451,41 @@ describe('configManager', () => {
       expect(manager.error).toContain('Failed to load config')
       expect(manager.isVisible).toBe(false)
     })
+
+    it('should keep pane open on save failure', async () => {
+      await manager.openPane()
+      manager.content = 'invalid content'
+      vi.mocked(mockConfigService.saveConfigContent).mockRejectedValue(
+        new Error('TOML syntax error')
+      )
+
+      const result = await manager.saveConfig()
+
+      expect(result.success).toBe(false)
+      expect(manager.error).toContain('Failed to save config')
+      expect(manager.isVisible).toBe(true)
+      expect(manager.content).toBe('invalid content')
+    })
+
+    it('should clear error on successful save', async () => {
+      await manager.openPane()
+      manager.content = 'invalid'
+      vi.mocked(mockConfigService.saveConfigContent).mockRejectedValue(
+        new Error('TOML error')
+      )
+
+      await manager.saveConfig()
+      expect(manager.error).toBeTruthy()
+
+      manager.content = 'valid content'
+      vi.mocked(mockConfigService.saveConfigContent).mockResolvedValue(
+        undefined
+      )
+
+      const result = await manager.saveConfig()
+
+      expect(result.success).toBe(true)
+      expect(manager.error).toBeNull()
+    })
   })
 })

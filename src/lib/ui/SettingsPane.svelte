@@ -41,8 +41,10 @@ Uses Editor component for syntax highlighting of configuration files.
   }
 
   async function handleSaveAndClose(): Promise<void> {
-    await actions.saveConfigAndRefresh()
-    onClose()
+    const result = await actions.saveConfigAndRefresh()
+    if (result.success) {
+      onClose()
+    }
   }
 
   function handleOverlayClick(e: MouseEvent): void {
@@ -71,6 +73,11 @@ Uses Editor component for syntax highlighting of configuration files.
       onclick={(e) => e.stopPropagation()}
     >
       <h3>Settings</h3>
+      {#if managers.configManager.error}
+        <div class="error-banner">
+          {managers.configManager.error}
+        </div>
+      {/if}
       <div class="settings-editor-container">
         <Editor
           bind:value={managers.configManager.content}
@@ -102,6 +109,18 @@ Uses Editor component for syntax highlighting of configuration files.
   .settings-pane h3 {
     margin: 0 0 8px 0;
     font-size: 1.1em;
+  }
+
+  .error-banner {
+    margin: 8px 0;
+    padding: 8px 12px;
+    background-color: rgba(255, 68, 68, 0.1);
+    border-left: 3px solid var(--theme-accent-error, #ff4444);
+    border-radius: 4px;
+    color: var(--theme-accent-error, #ff4444);
+    font-size: 12px;
+    font-family: var(--editor-font-family);
+    white-space: pre-wrap;
   }
 
   .settings-pane {

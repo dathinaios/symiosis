@@ -32,6 +32,9 @@ pub fn config_exists(app_state: tauri::State<crate::core::state::AppState>) -> b
 pub fn save_config_content(content: &str) -> Result<(), String> {
     let config_path = get_config_path();
 
+    toml::from_str::<AppConfig>(content)
+        .map_err(|e| format!("TOML syntax error: {}", e))?;
+
     let config = load_config_from_content(content);
 
     validate_config(&config).map_err(|e| format!("Configuration validation failed: {}", e))?;
