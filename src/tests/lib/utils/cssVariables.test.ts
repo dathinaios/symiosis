@@ -17,6 +17,7 @@ describe('cssVariables (TDD)', () => {
         ui_theme: 'gruvbox-dark',
         markdown_render_theme: 'github',
         md_render_code_theme: 'monokai',
+        always_on_top: false,
         custom_ui_theme_path: '',
         custom_markdown_theme_path: '',
       }
@@ -43,6 +44,7 @@ describe('cssVariables (TDD)', () => {
         ui_theme: 'gruvbox-dark',
         markdown_render_theme: 'github',
         md_render_code_theme: 'monokai',
+        always_on_top: false,
         custom_ui_theme_path: '',
         custom_markdown_theme_path: '',
       }
@@ -55,6 +57,7 @@ describe('cssVariables (TDD)', () => {
         ui_theme: 'article',
         markdown_render_theme: 'gruvbox',
         md_render_code_theme: 'github',
+        always_on_top: false,
         custom_ui_theme_path: '',
         custom_markdown_theme_path: '',
       }

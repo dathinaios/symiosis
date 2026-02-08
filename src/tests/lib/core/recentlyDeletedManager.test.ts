@@ -11,14 +11,14 @@ import {
 import type { DeletedFile } from '../../../lib/services/versionService.svelte'
 import { resetAllMocks } from '../../test-utils'
 
-const mockDeps: RecentlyDeletedManagerDeps = {
+const mockDeps = {
   focusSearch: vi.fn(),
   refreshCacheAndUI: vi.fn(),
   versionService: {
     getDeletedFiles: vi.fn(),
     recoverDeletedFile: vi.fn(),
   },
-}
+} satisfies RecentlyDeletedManagerDeps
 
 describe('recentlyDeletedManager (factory-based - TDD)', () => {
   let manager: ReturnType<typeof createRecentlyDeletedManager>

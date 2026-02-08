@@ -1,13 +1,7 @@
 /**
  * Service Layer - Config Service
- * Application configuration settings and the settings pane state.
- * Handles configuration loading, saving, and reactive settings panel visibility.
- *
- * TODO: We are not really following the architecture as found in the other services
- * (noteService/versionService) as we are also handling:
- * 1. Settings panel UI state (should move to App layer)
- * 2. DOM theme loading (should move to Core layer)
- * Ok, for now.
+ * Pure backend wrapper for configuration operations.
+ * Provides invoke wrappers for config reading, writing, and theme file loading.
  */
 
 import { invoke } from '@tauri-apps/api/core'
