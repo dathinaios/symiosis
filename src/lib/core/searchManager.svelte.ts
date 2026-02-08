@@ -6,6 +6,11 @@
 
 import type { createNoteService } from '../services/noteService.svelte'
 
+export interface NoteMetadata {
+  filename: string
+  modified: number
+}
+
 /** Minimum characters required before triggering a filtered search query */
 const MIN_SEARCH_QUERY_LENGTH = 3
 
@@ -17,7 +22,7 @@ interface SearchState {
   query: string
   searchTimeout: ReturnType<typeof setTimeout> | undefined
   requestController: AbortController | null
-  filteredNotes: string[]
+  filteredNotes: NoteMetadata[]
 }
 
 interface SearchManagerDeps {
@@ -32,14 +37,14 @@ interface SearchManagerDeps {
 
 interface SearchManager {
   readonly isLoading: boolean
-  readonly filteredNotes: string[]
+  readonly filteredNotes: NoteMetadata[]
   searchInput: string
   readonly query: string
   setSearchInput(value: string): void
-  setFilteredNotes(notes: string[]): void
+  setFilteredNotes(notes: NoteMetadata[]): void
   clearSearch(): void
-  executeSearch(query: string): Promise<string[]>
-  setSearchCompleteCallback(callback: (notes: string[]) => void): void
+  executeSearch(query: string): Promise<NoteMetadata[]>
+  setSearchCompleteCallback(callback: (notes: NoteMetadata[]) => void): void
   abort(): void
 }
 
@@ -52,7 +57,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     filteredNotes: [],
   })
 
-  let onSearchCompleteCallback: ((notes: string[]) => void) | null = null
+  let onSearchCompleteCallback: ((notes: NoteMetadata[]) => void) | null = null
   async function performSearch(query: string): Promise<void> {
     const searchController = setupSearchRequest()
 
@@ -86,7 +91,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     handleSuccessfulSearch(notes)
   }
 
-  function handleSuccessfulSearch(notes: string[]): void {
+  function handleSuccessfulSearch(notes: NoteMetadata[]): void {
     state.filteredNotes = notes
     onSearchCompleteCallback?.(notes)
     deps.progressManager.complete()
@@ -125,7 +130,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     }
   }
 
-  function setFilteredNotes(notes: string[]): void {
+  function setFilteredNotes(notes: NoteMetadata[]): void {
     state.filteredNotes = notes
   }
 
@@ -141,7 +146,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     get isLoading(): boolean {
       return deps.progressManager.isLoading
     },
-    get filteredNotes(): string[] {
+    get filteredNotes(): NoteMetadata[] {
       return state.filteredNotes
     },
     get searchInput(): string {
@@ -154,11 +159,11 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
       return state.query
     },
 
-    setSearchCompleteCallback(callback: (notes: string[]) => void): void {
+    setSearchCompleteCallback(callback: (notes: NoteMetadata[]) => void): void {
       onSearchCompleteCallback = callback
     },
 
-    async executeSearch(query: string): Promise<string[]> {
+    async executeSearch(query: string): Promise<NoteMetadata[]> {
       await performSearch(query)
       return state.filteredNotes
     },

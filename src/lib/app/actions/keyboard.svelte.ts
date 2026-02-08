@@ -5,6 +5,7 @@
  */
 
 import type { ShortcutsConfig } from '../../types/config'
+import type { NoteMetadata } from '../../core/searchManager.svelte'
 
 export interface KeyboardActionDeps {
   focusManager: ReturnType<
@@ -51,7 +52,7 @@ export interface AppState {
   isSearchInputFocused: boolean
   isEditMode: boolean
   isNoteContentFocused: boolean
-  filteredNotes: string[]
+  filteredNotes: NoteMetadata[]
   selectedNote: string | null
   noteContentElement: HTMLElement | null
   hideHighlights: boolean

@@ -52,7 +52,7 @@ export function createNoteActions(deps: NoteActionDeps): NoteActions {
       await searchManager.executeSearch('')
 
       const noteIndex = searchManager.filteredNotes.findIndex(
-        (note: string) => note === result.noteName
+        (note) => note.filename === result.noteName
       )
       if (noteIndex >= 0) {
         focusManager.setSelectedIndex(noteIndex)
@@ -93,7 +93,7 @@ export function createNoteActions(deps: NoteActionDeps): NoteActions {
       await searchManager.executeSearch(searchManager.searchInput)
 
       const noteIndex = searchManager.filteredNotes.findIndex(
-        (note: string) => note === result.newName
+        (note) => note.filename === result.newName
       )
       if (noteIndex >= 0) {
         focusManager.setSelectedIndex(noteIndex)

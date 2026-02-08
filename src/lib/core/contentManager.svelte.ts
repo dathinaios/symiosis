@@ -5,6 +5,7 @@
  */
 
 import { getHighlightedContent } from '../utils/contentHighlighting.svelte'
+import type { NoteMetadata } from './searchManager.svelte'
 
 /** Delay in ms before starting highlight navigation to allow DOM to settle */
 const HIGHLIGHT_NAVIGATION_DELAY_MS = 100
@@ -15,7 +16,7 @@ export interface ContentManagerDeps {
   }
   searchManager: {
     readonly query: string
-    executeSearch(query: string): Promise<string[]>
+    executeSearch(query: string): Promise<NoteMetadata[]>
   }
   focusManager: {
     readonly noteContentElement: HTMLElement | null
@@ -32,7 +33,7 @@ interface ContentState {
 }
 
 interface RefreshAfterSaveResult {
-  searchResults: string[]
+  searchResults: NoteMetadata[]
   content: string
 }
 

@@ -16,7 +16,10 @@ import { createContentManager } from '../core/contentManager.svelte'
 import { createConfigManager as createConfigManager } from '../core/configManager.svelte'
 import { createContentNavigationManager } from '../core/contentNavigationManager.svelte'
 import { createProgressManager } from '../core/progressManager.svelte'
-import { createSearchManager } from '../core/searchManager.svelte'
+import {
+  createSearchManager,
+  type NoteMetadata,
+} from '../core/searchManager.svelte'
 import { createEditorManager } from '../core/editorManager.svelte'
 import { createFocusManager } from '../core/focusManager.svelte'
 import { createVersionExplorerManager } from '../core/versionExplorerManager.svelte'
@@ -36,7 +39,7 @@ interface AppCoordinatorDeps {}
 export interface AppState {
   readonly query: string
   readonly isLoading: boolean
-  readonly filteredNotes: string[]
+  readonly filteredNotes: NoteMetadata[]
   readonly selectedNote: string | null
 }
 
@@ -89,14 +92,14 @@ export interface AppManagers {
 export interface AppCoordinator {
   readonly query: string
   readonly isLoading: boolean
-  readonly filteredNotes: string[]
+  readonly filteredNotes: NoteMetadata[]
   readonly selectedNote: string | null
   readonly keyboardActions: (event: KeyboardEvent) => Promise<void>
   readonly managers: AppManagers
   readonly state: AppState
   readonly actions: AppActions
   setupReactiveEffects(): () => void
-  updateFilteredNotes(notes: string[]): void
+  updateFilteredNotes(notes: NoteMetadata[]): void
   initialize(): Promise<() => void>
   handleSettingsClose(): void
 }
@@ -166,7 +169,7 @@ export function createAppCoordinator(
       index = 0
     }
 
-    return notes[index] || null
+    return notes[index]?.filename || null
   })
 
   const noteActions = createNoteActions({
@@ -329,10 +332,10 @@ export function createAppCoordinator(
   })
 
   function setupSearchCompleteCallback(): void {
-    searchManager.setSearchCompleteCallback(async (notes: string[]) => {
+    searchManager.setSearchCompleteCallback(async (notes: NoteMetadata[]) => {
       if (notes.length > 0) {
         focusManager.setSelectedIndex(0)
-        await loadNoteContent(notes[0])
+        await loadNoteContent(notes[0].filename)
       }
     })
   }
@@ -411,7 +414,7 @@ export function createAppCoordinator(
       const notes = await searchManager.executeSearch('')
       if (notes.length > 0) {
         focusManager.setSelectedIndex(0)
-        await loadNoteContent(notes[0])
+        await loadNoteContent(notes[0].filename)
       }
     }
   }
@@ -507,7 +510,7 @@ export function createAppCoordinator(
     get isLoading(): boolean {
       return isLoading
     },
-    get filteredNotes(): string[] {
+    get filteredNotes(): NoteMetadata[] {
       return filteredNotes
     },
     get selectedNote(): string | null {

@@ -4,7 +4,14 @@ use crate::utilities::strings::{
 };
 use nucleo_matcher::{Config, Matcher, Utf32Str};
 use rusqlite::params;
+use serde::Serialize;
 use std::cmp::Ordering;
+
+#[derive(Serialize)]
+pub struct NoteMetadata {
+    pub filename: String,
+    pub modified: i64,
+}
 
 #[derive(Debug, Clone)]
 pub struct SearchResult {
@@ -46,7 +53,7 @@ impl HybridSearcher {
         app_state: &crate::core::state::AppState,
         query: &str,
         max_results: usize,
-    ) -> AppResult<Vec<String>> {
+    ) -> AppResult<Vec<NoteMetadata>> {
         if query.trim().is_empty() {
             return self.get_recent_notes(app_state, max_results);
         }
@@ -63,7 +70,13 @@ impl HybridSearcher {
         results.sort_by(|a, b| self.compare_results(a, b));
         results.truncate(max_results);
 
-        Ok(results.into_iter().map(|r| r.filename).collect())
+        Ok(results
+            .into_iter()
+            .map(|r| NoteMetadata {
+                filename: r.filename,
+                modified: r.modified,
+            })
+            .collect())
     }
 
     fn get_candidates_from_sqlite(
@@ -215,15 +228,20 @@ impl HybridSearcher {
         &self,
         app_state: &crate::core::state::AppState,
         max_results: usize,
-    ) -> AppResult<Vec<String>> {
+    ) -> AppResult<Vec<NoteMetadata>> {
         crate::database::with_db(app_state, |conn| {
-            let mut stmt =
-                conn.prepare("SELECT filename FROM notes ORDER BY modified DESC LIMIT ?")?;
+            let mut stmt = conn
+                .prepare("SELECT filename, modified FROM notes ORDER BY modified DESC LIMIT ?")?;
 
-            let rows = stmt.query_map([max_results], |row| row.get(0))?;
+            let rows = stmt.query_map([max_results], |row| {
+                Ok(NoteMetadata {
+                    filename: row.get(0)?,
+                    modified: row.get(1)?,
+                })
+            })?;
 
-            let filenames = rows.collect::<Result<Vec<_>, _>>()?;
-            Ok(filenames)
+            let notes = rows.collect::<Result<Vec<_>, _>>()?;
+            Ok(notes)
         })
     }
 }
@@ -232,7 +250,7 @@ pub fn search_notes_hybrid(
     app_state: &crate::core::state::AppState,
     query: &str,
     max_results: usize,
-) -> AppResult<Vec<String>> {
+) -> AppResult<Vec<NoteMetadata>> {
     let mut searcher =
         HybridSearcher::new().map_err(|e| AppError::DatabaseConnection(e.to_string()))?;
     searcher.search(app_state, query, max_results)

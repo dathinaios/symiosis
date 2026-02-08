@@ -6,6 +6,7 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import { notification } from '../utils/notification'
+import type { NoteMetadata } from '../core/searchManager.svelte'
 
 export function createNoteService() {
   const state = $state({
@@ -145,9 +146,9 @@ export function createNoteService() {
     }
   }
 
-  async function search(query: string): Promise<string[]> {
+  async function search(query: string): Promise<NoteMetadata[]> {
     try {
-      return await invoke<string[]>('search_notes', { query })
+      return await invoke<NoteMetadata[]>('search_notes', { query })
     } catch (e) {
       console.error('Failed to search notes:', e)
       throw e

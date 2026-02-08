@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createSearchActions } from '$lib/app/actions/search.svelte'
+import type { NoteMetadata } from '$lib/core/searchManager.svelte'
+
+const toMetadata = (filenames: string[]): NoteMetadata[] =>
+  filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
 
 describe('search actions', () => {
   let searchActions: ReturnType<typeof createSearchActions>
@@ -37,10 +41,10 @@ describe('search actions', () => {
     it('should update filtered notes in search manager', () => {
       const notes = ['note1.md', 'note2.md', 'note3.md']
 
-      searchActions.updateFilteredNotes(notes)
+      searchActions.updateFilteredNotes(toMetadata(notes))
 
       expect(mockDeps.searchManager.setFilteredNotes).toHaveBeenCalledWith(
-        notes
+        toMetadata(notes)
       )
     })
 
@@ -49,7 +53,7 @@ describe('search actions', () => {
       ;(mockDeps.focusManager as any).selectedIndex = -1
       const notes = ['note1.md', 'note2.md']
 
-      searchActions.updateFilteredNotes(notes)
+      searchActions.updateFilteredNotes(toMetadata(notes))
 
       expect(mockDeps.editorManager.exitEditMode).toHaveBeenCalledOnce()
       expect(mockDeps.focusManager.setSelectedIndex).toHaveBeenCalledWith(0)
@@ -60,7 +64,7 @@ describe('search actions', () => {
       ;(mockDeps.focusManager as any).selectedIndex = 5
       const notes = ['note1.md', 'note2.md']
 
-      searchActions.updateFilteredNotes(notes)
+      searchActions.updateFilteredNotes(toMetadata(notes))
 
       expect(mockDeps.editorManager.exitEditMode).toHaveBeenCalledOnce()
       expect(mockDeps.focusManager.setSelectedIndex).toHaveBeenCalledWith(0)
@@ -71,7 +75,7 @@ describe('search actions', () => {
       ;(mockDeps.focusManager as any).selectedIndex = 1
       const notes = ['note1.md', 'note2.md', 'note3.md']
 
-      searchActions.updateFilteredNotes(notes)
+      searchActions.updateFilteredNotes(toMetadata(notes))
 
       expect(mockDeps.editorManager.exitEditMode).not.toHaveBeenCalled()
       expect(mockDeps.focusManager.setSelectedIndex).not.toHaveBeenCalled()
@@ -82,7 +86,7 @@ describe('search actions', () => {
       ;(mockDeps.focusManager as any).selectedIndex = 5
       const notes: string[] = []
 
-      searchActions.updateFilteredNotes(notes)
+      searchActions.updateFilteredNotes(toMetadata(notes))
 
       expect(mockDeps.editorManager.exitEditMode).not.toHaveBeenCalled()
       expect(mockDeps.focusManager.setSelectedIndex).not.toHaveBeenCalled()

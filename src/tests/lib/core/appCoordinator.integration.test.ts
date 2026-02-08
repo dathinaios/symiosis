@@ -15,7 +15,7 @@ const mockSearchManager = {
   setSearchInput: vi.fn(),
   setFilteredNotes: vi.fn(),
   searchInput: '',
-  filteredNotes: ['existing-note.md'],
+  filteredNotes: [{ filename: 'existing-note.md', modified: Date.now() / 1000 }],
   isLoading: false,
   clearSearch: vi.fn(),
   areHighlightsCleared: false,
@@ -133,7 +133,9 @@ describe('appCoordinator Integration Tests', () => {
     mockDialogManager.newNoteNameForRename = ''
     mockConfigService.isVisible = false
     mockConfigService.content = ''
-    mockSearchManager.filteredNotes = ['existing-note.md']
+    mockSearchManager.filteredNotes = [
+      { filename: 'existing-note.md', modified: Date.now() / 1000 },
+    ]
 
     // Import the factories after mocks are set up
     const { createAppCoordinator } = await import(
@@ -146,7 +148,10 @@ describe('appCoordinator Integration Tests', () => {
     it('should complete full note creation workflow', async () => {
       const noteName = 'My New Note'
       const expectedFileName = 'My New Note.md'
-      const updatedNotes = ['existing-note.md', expectedFileName]
+      const updatedNotes = [
+        { filename: 'existing-note.md', modified: Date.now() / 1000 },
+        { filename: expectedFileName, modified: Date.now() / 1000 },
+      ]
 
       // Mock successful creation
       mockNoteService.create.mockResolvedValue({
@@ -210,7 +215,9 @@ describe('appCoordinator Integration Tests', () => {
       // Set up a selected note
       appCoordinator.managers.focusManager.setSelectedIndex(0)
       // Ensure filteredNotes has notes by default
-      mockSearchManager.filteredNotes = ['existing-note.md']
+      mockSearchManager.filteredNotes = [
+      { filename: 'existing-note.md', modified: Date.now() / 1000 },
+    ]
     })
 
     it('should complete full note deletion workflow', async () => {
@@ -276,7 +283,9 @@ describe('appCoordinator Integration Tests', () => {
       appCoordinator.managers.focusManager.setSelectedIndex(0)
       mockSearchManager.searchInput = 'existing'
       // Ensure filteredNotes has notes by default
-      mockSearchManager.filteredNotes = ['existing-note.md']
+      mockSearchManager.filteredNotes = [
+      { filename: 'existing-note.md', modified: Date.now() / 1000 },
+    ]
     })
 
     it('should complete full note rename workflow', async () => {

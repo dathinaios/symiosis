@@ -36,22 +36,31 @@ Handles note selection state and integrates with keyboard navigation.
       <div class="no-notes">Press {create_note_key} to create the note.</div>
     {:else}
       <ul bind:this={noteListElement} tabindex="-1">
-        {#each appState.filteredNotes as note, index (note)}
+        {#each appState.filteredNotes as note, index (note.filename)}
           <li>
             <button
               class:selected={index === focusManager.selectedIndex}
               tabindex="-1"
               onclick={() => {
                 focusManager.setSelectedIndex(index)
-                actions.loadNoteContent(note)
+                actions.loadNoteContent(note.filename)
               }}
             >
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-              {@html getHighlightedTitle(
-                note,
-                appState.query,
-                contentNavigationManager.hideHighlights
-              )}
+              <div class="note-title">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                {@html getHighlightedTitle(
+                  note.filename,
+                  appState.query,
+                  contentNavigationManager.hideHighlights
+                )}
+              </div>
+              <div class="note-date">
+                {new Date(note.modified * 1000).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </div>
             </button>
           </li>
         {/each}
@@ -105,6 +114,21 @@ Handles note selection state and integrates with keyboard navigation.
     contain: layout;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .note-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .note-date {
+    flex-shrink: 0;
+    font-size: 0.85em;
+    color: var(--theme-text-muted);
+    opacity: 0.7;
   }
   .selected {
     background-color: var(--theme-bg-tertiary) !important;

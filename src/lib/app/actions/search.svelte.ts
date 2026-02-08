@@ -4,6 +4,8 @@
  * and managing filtered note results.
  */
 
+import type { NoteMetadata } from '../../core/searchManager.svelte'
+
 interface SearchActionDeps {
   searchManager: ReturnType<
     typeof import('../../core/searchManager.svelte').createSearchManager
@@ -23,7 +25,7 @@ interface SearchActionDeps {
 }
 
 interface SearchActions {
-  updateFilteredNotes(notes: string[]): void
+  updateFilteredNotes(notes: NoteMetadata[]): void
   resetSearchState(): void
   clearHighlights(): void
   clearSearch(): void
@@ -37,7 +39,7 @@ export function createSearchActions(deps: SearchActionDeps): SearchActions {
     contentNavigationManager,
   } = deps
 
-  function updateFilteredNotes(notes: string[]): void {
+  function updateFilteredNotes(notes: NoteMetadata[]): void {
     searchManager.setFilteredNotes(notes)
 
     // Handle selection normalization when filtered notes change

@@ -97,9 +97,9 @@ describe('appCoordinator', () => {
 
       // Simulate notes being loaded via searchManager
       appCoordinator.managers.searchManager.setFilteredNotes([
-        'note1.md',
-        'note2.md',
-        'note3.md',
+        { filename: 'note1.md', modified: Date.now() / 1000 },
+        { filename: 'note2.md', modified: Date.now() / 1000 },
+        { filename: 'note3.md', modified: Date.now() / 1000 },
       ])
 
       // The derived selectedNote should return the first note
@@ -129,8 +129,8 @@ describe('appCoordinator', () => {
     it('should reset selection when notes become empty', () => {
       // Start with notes
       appCoordinator.managers.searchManager.setFilteredNotes([
-        'note1.md',
-        'note2.md',
+        { filename: 'note1.md', modified: Date.now() / 1000 },
+        { filename: 'note2.md', modified: Date.now() / 1000 },
       ])
       appCoordinator.managers.focusManager.setSelectedIndex(1)
       expect(appCoordinator.selectedNote).toBe('note2.md')

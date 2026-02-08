@@ -438,6 +438,7 @@ mod test_command_wrappers {
         let config = crate::config::load_config();
         let app_state = AppState::new_with_fallback(config).expect("Test database setup failed");
         crate::search::search_notes_hybrid(&app_state, query, max_results)
+            .map(|notes| notes.into_iter().map(|n| n.filename).collect())
     }
 }
 
