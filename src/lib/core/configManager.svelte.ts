@@ -167,6 +167,9 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
     const previousUITheme = state.interface.ui_theme
     const previousMarkdownTheme = state.interface.markdown_render_theme
     const previousCodeTheme = state.interface.md_render_code_theme
+    const previousCustomUIPath = state.interface.custom_ui_theme_path
+    const previousCustomMarkdownPath =
+      state.interface.custom_markdown_theme_path
 
     state.notesDirectory = config.notes_directory
     state.globalShortcut = config.global_shortcut
@@ -183,8 +186,7 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
 
       if (
         config.interface.ui_theme !== previousUITheme ||
-        config.interface.custom_ui_theme_path !==
-          state.interface.custom_ui_theme_path
+        config.interface.custom_ui_theme_path !== previousCustomUIPath
       ) {
         ;(async () => {
           const customUiCss = config.interface.custom_ui_theme_path
@@ -200,7 +202,7 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
       if (
         config.interface.markdown_render_theme !== previousMarkdownTheme ||
         config.interface.custom_markdown_theme_path !==
-          state.interface.custom_markdown_theme_path
+          previousCustomMarkdownPath
       ) {
         ;(async () => {
           const customMdCss = config.interface.custom_markdown_theme_path
