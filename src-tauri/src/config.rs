@@ -3,6 +3,7 @@ use crate::logging::log;
 use crate::utilities::config_helpers::{default_global_shortcut, default_window_decorations};
 
 pub use crate::utilities::config_helpers::{
+    get_available_code_themes, get_available_editor_modes, get_available_editor_themes,
     get_available_markdown_themes, get_available_ui_themes, load_config_from_content,
     parse_shortcut,
 };
@@ -20,6 +21,7 @@ pub enum ConfigReloadResult {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
+    #[serde(default = "default_notes_directory")]
     pub notes_directory: String,
     #[serde(default = "default_global_shortcut")]
     pub global_shortcut: String,
@@ -41,12 +43,14 @@ pub struct AppConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct GeneralConfig {
     #[serde(default = "default_scroll_amount")]
     pub scroll_amount: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct InterfaceConfig {
     pub ui_theme: String,
     pub font_family: String,
@@ -63,6 +67,7 @@ pub struct InterfaceConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct ShortcutsConfig {
     pub create_note: String,
     pub rename_note: String,
@@ -89,12 +94,14 @@ pub struct ShortcutsConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct PreferencesConfig {
     #[serde(default = "default_max_results")]
     pub max_search_results: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
 pub struct EditorConfig {
     pub mode: String,
     pub theme: String,
@@ -102,6 +109,10 @@ pub struct EditorConfig {
     pub tab_size: u16,
     pub expand_tabs: bool,
     pub show_line_numbers: bool,
+}
+
+fn default_notes_directory() -> String {
+    get_default_notes_dir()
 }
 
 fn default_max_results() -> usize {

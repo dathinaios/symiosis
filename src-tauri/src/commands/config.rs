@@ -3,8 +3,8 @@ use tauri::{AppHandle, Manager};
 use crate::logging::log;
 
 use crate::config::{
-    get_available_markdown_themes, get_available_ui_themes, load_config_from_content, EditorConfig,
-    GeneralConfig, InterfaceConfig, PreferencesConfig, ShortcutsConfig,
+    get_available_markdown_themes, get_available_ui_themes, load_config_from_content, AppConfig,
+    EditorConfig, GeneralConfig, InterfaceConfig, PreferencesConfig, ShortcutsConfig,
 };
 use crate::core::{AppError, AppResult};
 use crate::utilities::paths::get_config_path;
@@ -148,6 +148,11 @@ fn apply_theme_fallbacks(ui_themes: &mut Vec<String>, markdown_themes: &mut Vec<
             .map(|s| s.to_string())
             .collect();
     }
+}
+
+#[tauri::command]
+pub fn get_default_config() -> AppConfig {
+    AppConfig::default()
 }
 
 #[tauri::command]

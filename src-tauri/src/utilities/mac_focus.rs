@@ -56,7 +56,11 @@ pub fn show_app(window: tauri::WebviewWindow) {
         log("MAC_FOCUS", "Failed to show window", Some(&e.to_string()));
     }
     if let Err(e) = window.set_focus() {
-        log("MAC_FOCUS", "Failed to set window focus", Some(&e.to_string()));
+        log(
+            "MAC_FOCUS",
+            "Failed to set window focus",
+            Some(&e.to_string()),
+        );
     }
 
     // set_focus alone doesn't fully activate the app at macOS level
@@ -97,11 +101,19 @@ pub fn hide_app_and_restore_previous(window: tauri::WebviewWindow) {
             let options = NSApplicationActivationOptions::ActivateAllWindows;
             let success = unsafe { prev_app.activateWithOptions(options) };
             if !success {
-                log("MAC_FOCUS", "Failed to activate previous app", Some(&format!("PID: {}", prev_pid)));
+                log(
+                    "MAC_FOCUS",
+                    "Failed to activate previous app",
+                    Some(&format!("PID: {}", prev_pid)),
+                );
             }
         }
         None => {
-            log("MAC_FOCUS", "Previous app no longer running", Some(&format!("PID: {}", prev_pid)));
+            log(
+                "MAC_FOCUS",
+                "Previous app no longer running",
+                Some(&format!("PID: {}", prev_pid)),
+            );
         }
     }
 }

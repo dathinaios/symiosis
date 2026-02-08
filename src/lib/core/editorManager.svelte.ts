@@ -36,10 +36,7 @@ export interface EditorManager {
   readonly isDirty: boolean
   readonly nearestHeaderText: string
   readonly editingNoteName: string | null
-  enterEditMode(
-    noteName: string,
-    fallbackHtmlContent?: string
-  ): Promise<void>
+  enterEditMode(noteName: string, fallbackHtmlContent?: string): Promise<void>
   exitEditMode(): string
   updateContent(newContent: string): void
   saveNote(): Promise<SaveResult>

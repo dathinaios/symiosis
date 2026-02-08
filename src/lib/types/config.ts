@@ -53,3 +53,13 @@ export interface ShortcutsConfig {
 export interface PreferencesConfig {
   max_search_results: number
 }
+
+export interface AppConfig {
+  notes_directory: string
+  global_shortcut: string
+  general: GeneralConfig
+  interface: InterfaceConfig
+  editor: EditorConfig
+  shortcuts: ShortcutsConfig
+  preferences: PreferencesConfig
+}

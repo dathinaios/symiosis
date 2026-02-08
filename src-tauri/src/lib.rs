@@ -233,6 +233,7 @@ fn register_command_handlers(
         get_config_content,
         save_config_content,
         config_exists,
+        get_default_config,
         get_general_config,
         get_interface_config,
         get_editor_config,

@@ -1,4 +1,5 @@
 use crate::config::{
+    get_available_code_themes, get_available_editor_modes, get_available_editor_themes,
     get_available_markdown_themes, get_available_ui_themes, parse_shortcut, AppConfig,
     EditorConfig, GeneralConfig, InterfaceConfig, PreferencesConfig, ShortcutsConfig,
 };
@@ -42,26 +43,7 @@ pub fn validate_interface_config(interface: &InterfaceConfig) -> AppResult<()> {
         )));
     }
 
-    let valid_md_code_themes = [
-        "gruvbox-dark-hard",
-        "gruvbox-dark-medium",
-        "gruvbox-dark-soft",
-        "gruvbox-light-hard",
-        "gruvbox-light-medium",
-        "atom-one-dark",
-        "dracula",
-        "nord",
-        "monokai",
-        "github-dark",
-        "vs2015",
-        "night-owl",
-        "tokyo-night-dark",
-        "atom-one-light",
-        "github",
-        "vs",
-        "xcode",
-        "tokyo-night-light",
-    ];
+    let valid_md_code_themes = get_available_code_themes();
     if !valid_md_code_themes.contains(&interface.md_render_code_theme.as_str()) {
         return Err(AppError::ConfigLoad(format!(
             "Invalid markdown code theme '{}'. Valid themes: {}",
@@ -98,6 +80,11 @@ pub fn validate_shortcuts_config(shortcuts: &ShortcutsConfig) -> AppResult<()> {
     validate_basic_shortcut_format(&shortcuts.down)?;
     validate_basic_shortcut_format(&shortcuts.navigate_previous)?;
     validate_basic_shortcut_format(&shortcuts.navigate_next)?;
+    validate_basic_shortcut_format(&shortcuts.navigate_code_previous)?;
+    validate_basic_shortcut_format(&shortcuts.navigate_code_next)?;
+    validate_basic_shortcut_format(&shortcuts.navigate_link_previous)?;
+    validate_basic_shortcut_format(&shortcuts.navigate_link_next)?;
+    validate_basic_shortcut_format(&shortcuts.copy_current_section)?;
     validate_basic_shortcut_format(&shortcuts.open_settings)?;
     validate_basic_shortcut_format(&shortcuts.version_explorer)?;
     validate_basic_shortcut_format(&shortcuts.recently_deleted)?;
@@ -106,7 +93,7 @@ pub fn validate_shortcuts_config(shortcuts: &ShortcutsConfig) -> AppResult<()> {
 }
 
 pub fn validate_editor_config(editor: &EditorConfig) -> AppResult<()> {
-    let valid_modes = ["basic", "vim", "emacs"];
+    let valid_modes = get_available_editor_modes();
     if !valid_modes.contains(&editor.mode.as_str()) {
         return Err(AppError::ConfigLoad(format!(
             "Invalid editor mode '{}'. Valid modes: {}",
@@ -115,31 +102,7 @@ pub fn validate_editor_config(editor: &EditorConfig) -> AppResult<()> {
         )));
     }
 
-    let valid_themes = [
-        "abcdef",
-        "abyss",
-        "android-studio",
-        "andromeda",
-        "basic-dark",
-        "basic-light",
-        "forest",
-        "github-dark",
-        "github-light",
-        "gruvbox-dark",
-        "gruvbox-light",
-        "material-dark",
-        "material-light",
-        "monokai",
-        "nord",
-        "palenight",
-        "solarized-dark",
-        "solarized-light",
-        "tokyo-night-day",
-        "tokyo-night-storm",
-        "volcano",
-        "vscode-dark",
-        "vscode-light",
-    ];
+    let valid_themes = get_available_editor_themes();
     if !valid_themes.contains(&editor.theme.as_str()) {
         return Err(AppError::ConfigLoad(format!(
             "Invalid editor theme '{}'. Valid themes: {}",

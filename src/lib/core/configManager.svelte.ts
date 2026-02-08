@@ -1,6 +1,7 @@
 import { listen } from '@tauri-apps/api/event'
 import { configService } from '../services/configService.svelte'
 import type {
+  AppConfig,
   GeneralConfig,
   InterfaceConfig,
   EditorConfig,
@@ -20,16 +21,6 @@ interface ConfigState {
   error: string | null
   isInitialized: boolean
   isThemeInitialized: boolean
-}
-
-interface ConfigChanged {
-  notes_directory: string
-  global_shortcut: string
-  general: GeneralConfig
-  interface: InterfaceConfig
-  editor: EditorConfig
-  shortcuts: ShortcutsConfig
-  preferences: PreferencesConfig
 }
 
 export interface ConfigManager {
@@ -58,52 +49,52 @@ export interface ConfigManager {
 export function createConfigManager(): ConfigManager {
   const state = $state<ConfigState>({
     notesDirectory: '',
-    globalShortcut: 'Ctrl+Shift+N',
-    general: { scroll_amount: 0.4 },
+    globalShortcut: '',
+    general: { scroll_amount: 0 },
     interface: {
-      ui_theme: 'gruvbox-dark',
-      font_family: 'Inter, sans-serif',
-      font_size: 14,
-      editor_font_family: 'JetBrains Mono, Consolas, monospace',
-      editor_font_size: 14,
-      markdown_render_theme: 'modern-dark',
-      md_render_code_theme: 'gruvbox-dark-medium',
+      ui_theme: '',
+      font_family: '',
+      font_size: 0,
+      editor_font_family: '',
+      editor_font_size: 0,
+      markdown_render_theme: '',
+      md_render_code_theme: '',
       always_on_top: false,
     },
     editor: {
-      mode: 'basic',
-      theme: 'gruvbox-dark',
-      word_wrap: true,
-      tab_size: 2,
-      expand_tabs: true,
-      show_line_numbers: true,
+      mode: '',
+      theme: '',
+      word_wrap: false,
+      tab_size: 0,
+      expand_tabs: false,
+      show_line_numbers: false,
     },
     shortcuts: {
-      create_note: 'Ctrl+Enter',
-      rename_note: 'Ctrl+m',
-      delete_note: 'Ctrl+x',
-      edit_note: 'Enter',
-      save_and_exit: 'Ctrl+s',
-      open_external: 'Ctrl+o',
-      open_folder: 'Ctrl+f',
-      refresh_cache: 'Ctrl+r',
-      scroll_up: 'Ctrl+u',
-      scroll_down: 'Ctrl+d',
-      up: 'Ctrl+k',
-      down: 'Ctrl+j',
-      navigate_previous: 'Ctrl+p',
-      navigate_next: 'Ctrl+n',
-      navigate_code_previous: 'Ctrl+Alt+h',
-      navigate_code_next: 'Ctrl+Alt+l',
-      navigate_link_previous: 'Ctrl+h',
-      navigate_link_next: 'Ctrl+l',
-      copy_current_section: 'Ctrl+y',
-      open_settings: 'Meta+,',
-      version_explorer: 'Ctrl+/',
-      recently_deleted: 'Ctrl+.',
+      create_note: '',
+      rename_note: '',
+      delete_note: '',
+      edit_note: '',
+      save_and_exit: '',
+      open_external: '',
+      open_folder: '',
+      refresh_cache: '',
+      scroll_up: '',
+      scroll_down: '',
+      up: '',
+      down: '',
+      navigate_previous: '',
+      navigate_next: '',
+      navigate_code_previous: '',
+      navigate_code_next: '',
+      navigate_link_previous: '',
+      navigate_link_next: '',
+      copy_current_section: '',
+      open_settings: '',
+      version_explorer: '',
+      recently_deleted: '',
     },
     preferences: {
-      max_search_results: 100,
+      max_search_results: 0,
     },
     isLoading: false,
     error: null,
@@ -142,7 +133,7 @@ export function createConfigManager(): ConfigManager {
     )
   }
 
-  function updateConfigState(config: ConfigChanged): void {
+  function updateConfigState(config: AppConfig): void {
     const previousUITheme = state.interface.ui_theme
     const previousMarkdownTheme = state.interface.markdown_render_theme
     const previousCodeTheme = state.interface.md_render_code_theme
@@ -251,7 +242,7 @@ export function createConfigManager(): ConfigManager {
   }
 
   async function setupConfigListener(): Promise<void> {
-    unlistenConfigChanged = await listen<ConfigChanged>(
+    unlistenConfigChanged = await listen<AppConfig>(
       'config-updated',
       (event) => {
         updateConfigState(event.payload)
@@ -268,6 +259,7 @@ export function createConfigManager(): ConfigManager {
     state.error = null
 
     try {
+      await configService.initDefaults()
       const configs = await loadAllConfigs()
       await fetchAvailableThemes()
 

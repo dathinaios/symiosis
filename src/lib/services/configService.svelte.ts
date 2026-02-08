@@ -12,6 +12,7 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import type {
+  AppConfig,
   GeneralConfig,
   InterfaceConfig,
   EditorConfig,
@@ -58,6 +59,8 @@ export interface ConfigService {
   ): Promise<void>
   loadMarkdownTheme(theme: string, customPath?: string): Promise<void>
   loadHighlightJSTheme(theme: string): Promise<void>
+  initDefaults(): Promise<void>
+  getDefaultConfig(): AppConfig
 }
 
 export function createConfigService(): ConfigService {
@@ -68,6 +71,20 @@ export function createConfigService(): ConfigService {
     error: null,
     lastSaved: 0,
   })
+
+  let defaults: AppConfig | null = null
+
+  async function initDefaults(): Promise<void> {
+    if (defaults) return
+    defaults = await invoke<AppConfig>('get_default_config')
+  }
+
+  function getDefaultConfig(): AppConfig {
+    if (!defaults) {
+      throw new Error('Config defaults not loaded. Call initDefaults() first.')
+    }
+    return defaults
+  }
 
   async function open(): Promise<void> {
     state.isLoading = true
@@ -151,92 +168,46 @@ export function createConfigService(): ConfigService {
 
   async function getGeneralConfig(): Promise<GeneralConfig> {
     try {
-      const result = await invoke<GeneralConfig>('get_general_config')
-      return result
+      return await invoke<GeneralConfig>('get_general_config')
     } catch (e) {
       console.error('Failed to get general config:', e)
-      return { scroll_amount: 0.4 }
+      return getDefaultConfig().general
     }
   }
 
   async function getInterfaceConfig(): Promise<InterfaceConfig> {
     try {
-      const result = await invoke<InterfaceConfig>('get_interface_config')
-      return result
+      return await invoke<InterfaceConfig>('get_interface_config')
     } catch (e) {
       console.error('Failed to get interface config:', e)
-      return {
-        ui_theme: 'gruvbox-dark',
-        font_family: 'Inter, sans-serif',
-        font_size: 14,
-        editor_font_family: 'JetBrains Mono, Consolas, monospace',
-        editor_font_size: 14,
-        markdown_render_theme: 'modern-dark',
-        md_render_code_theme: 'gruvbox-dark-medium',
-        always_on_top: false,
-      }
+      return getDefaultConfig().interface
     }
   }
 
   async function getEditorConfig(): Promise<EditorConfig> {
     try {
-      const result = await invoke<EditorConfig>('get_editor_config')
-      return result
+      return await invoke<EditorConfig>('get_editor_config')
     } catch (e) {
       console.error('Failed to get editor config:', e)
-      return {
-        mode: 'basic',
-        theme: 'gruvbox-dark',
-        word_wrap: true,
-        tab_size: 2,
-        expand_tabs: true,
-        show_line_numbers: true,
-      }
+      return getDefaultConfig().editor
     }
   }
 
   async function getShortcutsConfig(): Promise<ShortcutsConfig> {
     try {
-      const result = await invoke<ShortcutsConfig>('get_shortcuts_config')
-      return result
+      return await invoke<ShortcutsConfig>('get_shortcuts_config')
     } catch (e) {
       console.error('Failed to get shortcuts config:', e)
-      return {
-        create_note: 'Ctrl+Enter',
-        rename_note: 'Ctrl+m',
-        delete_note: 'Ctrl+x',
-        edit_note: 'Enter',
-        save_and_exit: 'Ctrl+s',
-        open_external: 'Ctrl+o',
-        open_folder: 'Ctrl+f',
-        refresh_cache: 'Ctrl+r',
-        scroll_up: 'Ctrl+u',
-        scroll_down: 'Ctrl+d',
-        up: 'Ctrl+k',
-        down: 'Ctrl+j',
-        navigate_previous: 'Ctrl+p',
-        navigate_next: 'Ctrl+n',
-        navigate_code_previous: 'Ctrl+Alt+h',
-        navigate_code_next: 'Ctrl+Alt+l',
-        navigate_link_previous: 'Ctrl+h',
-        navigate_link_next: 'Ctrl+l',
-        copy_current_section: 'Ctrl+y',
-        open_settings: 'Meta+,',
-        version_explorer: 'Ctrl+/',
-        recently_deleted: 'Ctrl+.',
-      }
+      return getDefaultConfig().shortcuts
     }
   }
 
   async function getPreferencesConfig(): Promise<PreferencesConfig> {
     try {
-      const result = await invoke<PreferencesConfig>('get_preferences_config')
-      return result
+      return await invoke<PreferencesConfig>('get_preferences_config')
     } catch (e) {
       console.error('Failed to get preferences config:', e)
-      return {
-        max_search_results: 100,
-      }
+      return getDefaultConfig().preferences
     }
   }
 
@@ -250,6 +221,8 @@ export function createConfigService(): ConfigService {
     clearError,
     openPane,
     closePane,
+    initDefaults,
+    getDefaultConfig,
     getGeneralConfig,
     getInterfaceConfig,
     getEditorConfig,
