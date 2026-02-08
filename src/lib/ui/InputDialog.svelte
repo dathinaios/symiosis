@@ -126,38 +126,7 @@ Used for note creation and renaming operations throughout the application.
 {/if}
 
 <style>
-  .dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .dialog {
-    background-color: var(--theme-bg-secondary);
-    border: 1px solid var(--theme-border);
-    border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-    padding: 12px;
-    min-width: 400px;
-    max-width: 500px;
-    color: var(--theme-text-primary);
-    outline: none;
-  }
-
-  .dialog h3 {
-    margin: 0 0 12px 0;
-    color: var(--theme-text-primary);
-    font-size: 1.3em;
-    font-weight: 600;
-  }
+  @import '/css/dialog.css';
 
   .dialog-input {
     width: 100%;
@@ -184,23 +153,6 @@ Used for note creation and renaming operations throughout the application.
 
   .dialog-input::placeholder {
     color: var(--theme-text-muted);
-  }
-
-  .dialog-buttons {
-    display: flex;
-    gap: 6px;
-    justify-content: flex-end;
-    margin-top: 8px;
-  }
-
-  .cancel-btn,
-  .confirm-btn {
-    padding: 6px 12px;
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-    font-weight: 500;
   }
 
   .cancel-btn {

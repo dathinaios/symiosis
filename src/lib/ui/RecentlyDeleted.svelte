@@ -180,36 +180,11 @@ Features simple file list, keyboard navigation, and recovery.
 {/if}
 
 <style>
-  .dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .dialog {
-    background-color: var(--theme-bg-secondary);
-    border: 1px solid var(--theme-border);
-    border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-    padding: 12px;
-  }
-
-  .dialog h3 {
-    margin: 0 0 12px 0;
-    color: var(--theme-text-primary);
-    font-size: 1.3em;
-    font-weight: 600;
-  }
+  @import '/css/dialog.css';
 
   .recently-deleted {
+    min-width: unset;
+    max-width: unset;
     width: 600px;
     height: 400px;
     display: flex;
