@@ -5,7 +5,6 @@
  */
 
 import type { DeletedFile } from '../services/versionService.svelte'
-import { versionService } from '../services/versionService.svelte'
 
 interface RecentlyDeletedState {
   isVisible: boolean
@@ -18,6 +17,17 @@ interface RecentlyDeletedState {
 export interface RecentlyDeletedManagerDeps {
   focusSearch: () => void
   refreshCacheAndUI: () => Promise<void>
+  versionService: {
+    getDeletedFiles(): Promise<{
+      success: boolean
+      files?: DeletedFile[]
+      error?: string
+    }>
+    recoverDeletedFile(
+      filename: string,
+      backupFilename: string
+    ): Promise<{ success: boolean; error?: string }>
+  }
 }
 
 export interface RecentlyDeletedManager {
@@ -65,7 +75,7 @@ export function createRecentlyDeletedManager(
     state.error = null
 
     try {
-      const result = await versionService.getDeletedFiles()
+      const result = await deps.versionService.getDeletedFiles()
 
       if (result.success && result.files) {
         state.files = result.files
@@ -113,7 +123,7 @@ export function createRecentlyDeletedManager(
         throw new Error(`File not found in deleted files list: ${filename}`)
       }
 
-      const result = await versionService.recoverDeletedFile(
+      const result = await deps.versionService.recoverDeletedFile(
         deletedFile.filename,
         deletedFile.backup_filename
       )

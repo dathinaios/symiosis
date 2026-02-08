@@ -325,6 +325,7 @@ export function createAppCoordinator(
   const recentlyDeletedManager = createRecentlyDeletedManager({
     focusSearch: () => focusManager.focusSearch(),
     refreshCacheAndUI,
+    versionService,
   })
 
   function setupSearchCompleteCallback(): void {

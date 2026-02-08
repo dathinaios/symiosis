@@ -11,51 +11,23 @@ import {
 import type { DeletedFile } from '../../../lib/services/versionService.svelte'
 import { resetAllMocks } from '../../test-utils'
 
-// Mock the versionService module
-vi.mock('../../../lib/services/versionService.svelte', () => ({
-  versionService: {
-    getDeletedFiles: vi.fn(),
-    recoverDeletedFile: vi.fn(),
-    clearError: vi.fn(),
-    isLoading: false,
-    error: null,
-    lastOperation: null,
-  },
-}))
-
 const mockDeps: RecentlyDeletedManagerDeps = {
   focusSearch: vi.fn(),
   refreshCacheAndUI: vi.fn(),
-}
-
-type MockVersionService = {
-  getDeletedFiles: ReturnType<typeof vi.fn>
-  recoverDeletedFile: ReturnType<typeof vi.fn>
-  clearError: ReturnType<typeof vi.fn>
-  isLoading: boolean
-  error: string | null
-  lastOperation: string | null
+  versionService: {
+    getDeletedFiles: vi.fn(),
+    recoverDeletedFile: vi.fn(),
+  },
 }
 
 describe('recentlyDeletedManager (factory-based - TDD)', () => {
   let manager: ReturnType<typeof createRecentlyDeletedManager>
-  let mockVersionService: MockVersionService
 
-  beforeEach(async () => {
+  beforeEach(() => {
     resetAllMocks()
     vi.clearAllMocks()
-
-    // Get the mocked version service
-    const { versionService } = await import(
-      '../../../lib/services/versionService.svelte'
-    )
-    mockVersionService = versionService as unknown as MockVersionService
-
-    // Reset mock implementations
-    mockVersionService.getDeletedFiles.mockReset()
-    mockVersionService.recoverDeletedFile.mockReset()
-    mockVersionService.clearError.mockReset()
-
+    vi.mocked(mockDeps.versionService.getDeletedFiles).mockReset()
+    vi.mocked(mockDeps.versionService.recoverDeletedFile).mockReset()
     manager = createRecentlyDeletedManager(mockDeps)
   })
 
@@ -79,7 +51,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
           timestamp: 1234567890,
         },
       ]
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
@@ -93,7 +65,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
     })
 
     it('should handle no deleted files', async () => {
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: [],
       })
@@ -105,7 +77,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
     })
 
     it('should handle API errors', async () => {
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: false,
         error: 'Database error',
       })
@@ -117,7 +89,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
     })
 
     it('should handle exceptions', async () => {
-      mockVersionService.getDeletedFiles.mockRejectedValue('Network error')
+      mockDeps.versionService.getDeletedFiles.mockRejectedValue('Network error')
 
       await manager.openDialog()
 
@@ -136,7 +108,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
           timestamp: 1234567890,
         },
       ]
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
@@ -178,7 +150,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
           timestamp: 3,
         },
       ]
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
@@ -223,7 +195,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
           timestamp: 3,
         },
       ]
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
@@ -284,7 +256,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
     ]
 
     beforeEach(async () => {
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
@@ -292,13 +264,13 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
     })
 
     it('should recover file successfully and refresh UI', async () => {
-      mockVersionService.recoverDeletedFile.mockResolvedValue({
+      mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: true,
       })
 
       await manager.recoverFile('deleted-note')
 
-      expect(mockVersionService.recoverDeletedFile).toHaveBeenCalledWith(
+      expect(mockDeps.versionService.recoverDeletedFile).toHaveBeenCalledWith(
         'deleted-note',
         'deleted-note.backup'
       )
@@ -309,7 +281,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
 
     it('should adjust selected index when removing selected file', async () => {
       manager.selectFile(1) // Select second file
-      mockVersionService.recoverDeletedFile.mockResolvedValue({
+      mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: true,
       })
 
@@ -319,7 +291,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
     })
 
     it('should close dialog when no files remain', async () => {
-      mockVersionService.recoverDeletedFile.mockResolvedValue({
+      mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: true,
       })
 
@@ -333,11 +305,11 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
       await manager.recoverFile('non-existent-file')
 
       expect(manager.error).toContain('File not found in deleted files list')
-      expect(mockVersionService.recoverDeletedFile).not.toHaveBeenCalled()
+      expect(mockDeps.versionService.recoverDeletedFile).not.toHaveBeenCalled()
     })
 
     it('should handle recovery API error', async () => {
-      mockVersionService.recoverDeletedFile.mockResolvedValue({
+      mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: false,
         error: 'Recovery failed',
       })
@@ -349,7 +321,9 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
     })
 
     it('should handle recovery exception', async () => {
-      mockVersionService.recoverDeletedFile.mockRejectedValue('Network error')
+      mockDeps.versionService.recoverDeletedFile.mockRejectedValue(
+        'Network error'
+      )
 
       await manager.recoverFile('deleted-note')
 
@@ -366,7 +340,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
       const promise = new Promise((resolve) => {
         resolvePromise = resolve
       })
-      mockVersionService.getDeletedFiles.mockReturnValue(promise)
+      mockDeps.versionService.getDeletedFiles.mockReturnValue(promise)
 
       const openPromise = manager.openDialog()
       expect(manager.isLoading).toBe(true)
@@ -385,7 +359,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
           timestamp: 1234567890,
         },
       ]
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
@@ -395,7 +369,9 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
       const recoveryPromise = new Promise((resolve) => {
         resolveRecovery = resolve
       })
-      mockVersionService.recoverDeletedFile.mockReturnValue(recoveryPromise)
+      mockDeps.versionService.recoverDeletedFile.mockReturnValue(
+        recoveryPromise
+      )
 
       const recoverPromise = manager.recoverFile('deleted-note')
       expect(manager.isLoading).toBe(true)
@@ -427,7 +403,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
           resolvePromise = resolve
         }
       )
-      mockVersionService.getDeletedFiles.mockReturnValue(promise)
+      mockDeps.versionService.getDeletedFiles.mockReturnValue(promise)
 
       // Start opening dialog - this will start loading
       const openPromise = manager.openDialog()
@@ -459,12 +435,12 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
         },
       ]
 
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
       await manager.openDialog()
-      mockVersionService.recoverDeletedFile.mockResolvedValue({
+      mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: true,
       })
 
@@ -496,14 +472,14 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
         },
       ]
 
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
       await manager.openDialog()
 
       manager.selectFile(2) // Select last file
-      mockVersionService.recoverDeletedFile.mockResolvedValue({
+      mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: true,
       })
 
@@ -535,7 +511,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
         },
       ]
 
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
@@ -569,7 +545,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
         },
       ]
 
-      mockVersionService.getDeletedFiles.mockResolvedValue({
+      mockDeps.versionService.getDeletedFiles.mockResolvedValue({
         success: true,
         files: mockFiles,
       })
