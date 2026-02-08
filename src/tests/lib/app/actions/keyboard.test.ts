@@ -5,6 +5,10 @@ import type {
   ActionContext,
   KeyboardActionDeps,
 } from '../../../../lib/app/actions/keyboard.svelte'
+import type { NoteMetadata } from '../../../../lib/types/note'
+
+const toMetadata = (filenames: string[]): NoteMetadata[] =>
+  filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
 
 describe('keyboard actions', () => {
   let mockDeps: KeyboardActionDeps
@@ -116,7 +120,7 @@ describe('keyboard actions', () => {
       isSearchInputFocused: false,
       isEditMode: false,
       isNoteContentFocused: false,
-      filteredNotes: ['note1.md', 'note2.md', 'note3.md'],
+      filteredNotes: toMetadata(['note1.md', 'note2.md', 'note3.md']),
       selectedNote: 'note1.md',
       noteContentElement: document.createElement('div'),
       hideHighlights: false,
@@ -666,7 +670,10 @@ describe('keyboard actions', () => {
     })
 
     it('should handle default context when filteredNotes exist', async () => {
-      const defaultState = { ...mockState, filteredNotes: ['test.md'] }
+      const defaultState = {
+        ...mockState,
+        filteredNotes: toMetadata(['test.md']),
+      }
       getStateMock = vi.fn(() => defaultState)
       handler = keyboardActions.createKeyboardHandler(getStateMock)
 

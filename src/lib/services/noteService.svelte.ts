@@ -6,7 +6,7 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import { notification } from '../utils/notification'
-import type { NoteMetadata } from '../core/searchManager.svelte'
+import type { NoteMetadata } from '../types/note'
 
 export function createNoteService() {
   const state = $state({

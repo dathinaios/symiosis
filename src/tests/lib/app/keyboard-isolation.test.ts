@@ -6,6 +6,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createKeyboardActions } from '../../../lib/app/actions/keyboard.svelte'
 import type { AppState } from '../../../lib/app/actions/keyboard.svelte'
 import type { ConfigManager } from '../../../lib/core/configManager.svelte'
+import type { NoteMetadata } from '../../../lib/types/note'
+
+const toMetadata = (filenames: string[]): NoteMetadata[] =>
+  filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
 
 describe('Keyboard Shortcut Isolation', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -83,7 +87,7 @@ describe('Keyboard Shortcut Isolation', () => {
         isSearchInputFocused: false,
         isEditMode: false,
         isNoteContentFocused: false,
-        filteredNotes: ['note1.md', 'note2.md'],
+        filteredNotes: toMetadata(['note1.md', 'note2.md']),
         selectedNote: 'note1.md',
         noteContentElement: document.createElement('div'),
         hideHighlights: false,
@@ -110,7 +114,7 @@ describe('Keyboard Shortcut Isolation', () => {
         isSearchInputFocused: false,
         isEditMode: false,
         isNoteContentFocused: false,
-        filteredNotes: ['note1.md'],
+        filteredNotes: toMetadata(['note1.md']),
         selectedNote: 'note1.md',
         noteContentElement: document.createElement('div'),
         hideHighlights: false,
@@ -139,7 +143,7 @@ describe('Keyboard Shortcut Isolation', () => {
         isSearchInputFocused: false,
         isEditMode: false,
         isNoteContentFocused: false,
-        filteredNotes: ['note1.md', 'note2.md'],
+        filteredNotes: toMetadata(['note1.md', 'note2.md']),
         selectedNote: 'note1.md',
         noteContentElement: document.createElement('div'),
         hideHighlights: false,
@@ -166,7 +170,7 @@ describe('Keyboard Shortcut Isolation', () => {
         isSearchInputFocused: false,
         isEditMode: false,
         isNoteContentFocused: false,
-        filteredNotes: ['note1.md'],
+        filteredNotes: toMetadata(['note1.md']),
         selectedNote: 'note1.md',
         noteContentElement: document.createElement('div'),
         hideHighlights: false,
@@ -195,7 +199,7 @@ describe('Keyboard Shortcut Isolation', () => {
         isSearchInputFocused: false,
         isEditMode: false,
         isNoteContentFocused: false,
-        filteredNotes: ['note1.md', 'note2.md'],
+        filteredNotes: toMetadata(['note1.md', 'note2.md']),
         selectedNote: 'note1.md',
         noteContentElement: document.createElement('div'),
         hideHighlights: false,
@@ -222,7 +226,7 @@ describe('Keyboard Shortcut Isolation', () => {
         isSearchInputFocused: false,
         isEditMode: false,
         isNoteContentFocused: false,
-        filteredNotes: ['note1.md'],
+        filteredNotes: toMetadata(['note1.md']),
         selectedNote: 'note1.md',
         noteContentElement: document.createElement('div'),
         hideHighlights: false,

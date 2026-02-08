@@ -16,10 +16,7 @@ import { createContentManager } from '../core/contentManager.svelte'
 import { createConfigManager as createConfigManager } from '../core/configManager.svelte'
 import { createContentNavigationManager } from '../core/contentNavigationManager.svelte'
 import { createProgressManager } from '../core/progressManager.svelte'
-import {
-  createSearchManager,
-  type NoteMetadata,
-} from '../core/searchManager.svelte'
+import { createSearchManager } from '../core/searchManager.svelte'
 import { createEditorManager } from '../core/editorManager.svelte'
 import { createFocusManager } from '../core/focusManager.svelte'
 import { createVersionExplorerManager } from '../core/versionExplorerManager.svelte'
@@ -32,6 +29,7 @@ import { createSearchActions } from './actions/search.svelte'
 import { createSettingsActions } from './actions/settings.svelte'
 import { createKeyboardActions } from './actions/keyboard.svelte'
 import { setupAppEffects } from './effects/app.svelte'
+import type { NoteMetadata } from '../types/note'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface AppCoordinatorDeps {}

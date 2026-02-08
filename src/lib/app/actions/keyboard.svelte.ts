@@ -5,7 +5,7 @@
  */
 
 import type { ShortcutsConfig } from '../../types/config'
-import type { NoteMetadata } from '../../core/searchManager.svelte'
+import type { NoteMetadata } from '../../types/note'
 
 export interface KeyboardActionDeps {
   focusManager: ReturnType<
@@ -98,7 +98,7 @@ export function createKeyboardActions(
         const note = state.filteredNotes[newIndex]
         if (note) {
           actions.focusManager.setSelectedIndex(newIndex)
-          void actions.appCoordinator.loadNoteContent(note)
+          void actions.appCoordinator.loadNoteContent(note.filename)
         }
       },
       moveDown: ({ state, actions }: ActionContext) => {
@@ -110,7 +110,7 @@ export function createKeyboardActions(
         const note = state.filteredNotes[newIndex]
         if (note) {
           actions.focusManager.setSelectedIndex(newIndex)
-          void actions.appCoordinator.loadNoteContent(note)
+          void actions.appCoordinator.loadNoteContent(note.filename)
         }
       },
       focusSearch: ({ actions }: ActionContext) => {

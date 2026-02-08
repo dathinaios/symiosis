@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { ConfigManager } from '../../../lib/core/configManager.svelte'
+import type { NoteMetadata } from '../../../lib/types/note'
+
+const toMetadata = (filenames: string[]): NoteMetadata[] =>
+  filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
 
 // Mock all the services and managers
 const mockNoteService = {
@@ -8,7 +12,7 @@ const mockNoteService = {
 
 const mockSearchManager = {
   searchInput: '',
-  filteredNotes: [] as string[],
+  filteredNotes: [] as NoteMetadata[],
   isLoading: false,
   areHighlightsCleared: false,
   setFilteredNotes: vi.fn((notes) => {
@@ -266,7 +270,7 @@ describe('Content Loading Integration', () => {
         isSearchInputFocused: false,
         isEditMode: false,
         isNoteContentFocused: false,
-        filteredNotes: ['note1.md', 'note2.md', 'note3.md'],
+        filteredNotes: toMetadata(['note1.md', 'note2.md', 'note3.md']),
         selectedNote: 'note3.md',
         noteContentElement: null,
         areHighlightsCleared: false,
@@ -304,7 +308,7 @@ describe('Content Loading Integration', () => {
         isSearchInputFocused: false,
         isEditMode: false,
         isNoteContentFocused: false,
-        filteredNotes: ['note1.md', 'note2.md', 'note3.md'],
+        filteredNotes: toMetadata(['note1.md', 'note2.md', 'note3.md']),
         selectedNote: 'note1.md',
         noteContentElement: null,
         areHighlightsCleared: false,
@@ -341,7 +345,7 @@ describe('Content Loading Integration', () => {
       mockNoteService.getContent.mockResolvedValue('Note 1 content')
 
       const mockState = {
-        filteredNotes: ['note1.md', 'note2.md', 'note3.md'],
+        filteredNotes: toMetadata(['note1.md', 'note2.md', 'note3.md']),
       }
 
       const mockActionContext = {
@@ -427,7 +431,9 @@ describe('Content Loading Integration', () => {
 
       mockFocusManager.selectedIndex = 0
       const mockActionContext = {
-        state: { filteredNotes: ['note1.md', 'note2.md', 'note3.md'] },
+        state: {
+          filteredNotes: toMetadata(['note1.md', 'note2.md', 'note3.md']),
+        },
         actions: {
           focusManager: mockFocusManager,
           appCoordinator: {

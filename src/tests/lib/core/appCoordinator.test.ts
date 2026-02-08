@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mockInvoke, resetAllMocks } from '../../test-utils'
+import type { NoteMetadata } from '../../../lib/types/note'
+
+const toMetadata = (filenames: string[]): NoteMetadata[] =>
+  filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: mockInvoke,
@@ -266,10 +270,11 @@ describe('appCoordinator', () => {
       expect(state.filteredNotes).toEqual([])
 
       // Simulate state change (like what happens during initialization)
-      appCoordinator.updateFilteredNotes(['test1.md', 'test2.md'])
+      const testNotes = toMetadata(['test1.md', 'test2.md'])
+      appCoordinator.updateFilteredNotes(testNotes)
 
       state = appCoordinator.state
-      expect(state.filteredNotes).toEqual(['test1.md', 'test2.md'])
+      expect(state.filteredNotes).toEqual(testNotes)
     })
 
     it('should not populate filteredNotes when config does not exist', async () => {

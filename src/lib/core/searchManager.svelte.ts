@@ -5,11 +5,7 @@
  */
 
 import type { createNoteService } from '../services/noteService.svelte'
-
-export interface NoteMetadata {
-  filename: string
-  modified: number
-}
+import type { NoteMetadata } from '../types/note'
 
 /** Minimum characters required before triggering a filtered search query */
 const MIN_SEARCH_QUERY_LENGTH = 3

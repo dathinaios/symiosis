@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createSearchActions } from '$lib/app/actions/search.svelte'
-import type { NoteMetadata } from '$lib/core/searchManager.svelte'
+import type { NoteMetadata } from '$lib/types/note'
 
 const toMetadata = (filenames: string[]): NoteMetadata[] =>
   filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
@@ -165,9 +165,8 @@ describe('search actions', () => {
     })
 
     it('should handle very large note arrays', () => {
-      const largeNoteArray = Array.from(
-        { length: 10000 },
-        (_, i) => `note${i}.md`
+      const largeNoteArray = toMetadata(
+        Array.from({ length: 10000 }, (_, i) => `note${i}.md`)
       )
 
       expect(() => {

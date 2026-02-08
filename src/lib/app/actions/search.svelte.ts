@@ -4,7 +4,7 @@
  * and managing filtered note results.
  */
 
-import type { NoteMetadata } from '../../core/searchManager.svelte'
+import type { NoteMetadata } from '../../types/note'
 
 interface SearchActionDeps {
   searchManager: ReturnType<

@@ -5,7 +5,7 @@
  */
 
 import { getHighlightedContent } from '../utils/contentHighlighting.svelte'
-import type { NoteMetadata } from './searchManager.svelte'
+import type { NoteMetadata } from '../types/note'
 
 /** Delay in ms before starting highlight navigation to allow DOM to settle */
 const HIGHLIGHT_NAVIGATION_DELAY_MS = 100
