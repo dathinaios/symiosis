@@ -21,7 +21,6 @@ Composes all UI components and provides keyboard event handling for the entire a
   import HintsPanel from '../lib/ui/HintsPanel.svelte'
   import Notification from '../lib/ui/Notification.svelte'
   import { createAppCoordinator } from '../lib/app/appCoordinator.svelte'
-  import { configService } from '../lib/services/configService.svelte'
 
   const appCoordinator = createAppCoordinator({})
 
@@ -38,6 +37,7 @@ Composes all UI components and provides keyboard event handling for the entire a
     progressManager,
     versionExplorerManager,
     recentlyDeletedManager,
+    configManager,
   } = appCoordinator.managers
   const appState = appCoordinator.state
   const actions = appCoordinator.actions
@@ -64,7 +64,7 @@ Composes all UI components and provides keyboard event handling for the entire a
 
   <div slot="modals">
     <SettingsPane
-      show={configService.isVisible}
+      show={configManager.isVisible}
       onClose={() => appCoordinator.handleSettingsClose()}
     />
 

@@ -30,7 +30,6 @@ vi.mock('../../../lib/services/noteService.svelte', () => ({
 
 const mockConfigService = {
   exists: vi.fn(),
-  openPane: vi.fn(),
 }
 
 vi.mock('../../../lib/services/configService.svelte', () => ({
@@ -52,7 +51,6 @@ describe('appCoordinator', () => {
     mockNoteService.search.mockReset()
     mockNoteService.initializeDatabase.mockReset()
     mockConfigService.exists.mockReset()
-    mockConfigService.openPane.mockReset()
 
     // Reset the appCoordinator state between tests using new pattern
     appCoordinator.managers.searchManager.searchInput = ''
@@ -277,7 +275,6 @@ describe('appCoordinator', () => {
     it('should not populate filteredNotes when config does not exist', async () => {
       // Mock config service to return false (config does not exist)
       mockConfigService.exists.mockResolvedValue(false)
-      mockConfigService.openPane.mockResolvedValue(undefined)
 
       // Before initialization, filteredNotes should be empty
       expect(appCoordinator.filteredNotes).toEqual([])
@@ -288,7 +285,6 @@ describe('appCoordinator', () => {
       // After initialization, filteredNotes should still be empty since no config exists
       expect(appCoordinator.filteredNotes).toEqual([])
       expect(mockConfigService.exists).toHaveBeenCalled()
-      expect(mockConfigService.openPane).toHaveBeenCalled()
       expect(mockNoteService.search).not.toHaveBeenCalled()
 
       cleanup()

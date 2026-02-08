@@ -5,7 +5,7 @@
  */
 
 interface SettingsActionDeps {
-  configService: {
+  configManager: {
     openPane: () => Promise<void>
     closePane: () => void
   }
@@ -22,15 +22,15 @@ interface SettingsActions {
 export function createSettingsActions(
   deps: SettingsActionDeps
 ): SettingsActions {
-  const { configService, focusManager } = deps
+  const { configManager, focusManager } = deps
 
   async function openSettingsPane(): Promise<void> {
-    await configService.openPane()
+    await configManager.openPane()
     focusManager.focusSearch()
   }
 
   function closeSettingsPane(): void {
-    configService.closePane()
+    configManager.closePane()
     focusManager.focusSearch()
   }
 

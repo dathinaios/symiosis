@@ -187,7 +187,7 @@ export function createAppCoordinator(
   })
 
   const settingsActions = createSettingsActions({
-    configService,
+    configManager,
     focusManager,
   })
 
@@ -202,7 +202,7 @@ export function createAppCoordinator(
   }
 
   function handleSettingsClose(): void {
-    configService.closePane()
+    configManager.closePane()
     focusManager.focusSearch()
 
     if (isFirstRun) {
@@ -456,7 +456,7 @@ export function createAppCoordinator(
     success: boolean
     error?: string
   }> {
-    const result = await configService.save()
+    const result = await configManager.saveConfig()
 
     if (result.success) {
       await searchManager.executeSearch('')
@@ -527,7 +527,7 @@ export function createAppCoordinator(
         hideHighlights: contentNavigationManager.hideHighlights,
         isEditorDirty: editorManager.isDirty,
         query: query,
-        isSettingsOpen: configService.isVisible,
+        isSettingsOpen: configManager.isVisible,
         isAnyDialogOpen:
           dialogManager.showCreateDialog ||
           dialogManager.showRenameDialog ||

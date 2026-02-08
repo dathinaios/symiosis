@@ -6,9 +6,8 @@ Uses Editor component for syntax highlighting of configuration files.
 
 <script lang="ts">
   import Editor from './Editor.svelte'
-  import { configService } from '../services/configService.svelte'
   import { getContext } from 'svelte'
-  import type { AppActions } from '../app/appCoordinator.svelte'
+  import type { AppActions, AppManagers } from '../app/appCoordinator.svelte'
 
   interface Props {
     show: boolean
@@ -17,6 +16,7 @@ Uses Editor component for syntax highlighting of configuration files.
 
   const { show, onClose }: Props = $props()
   const actions = getContext<AppActions>('actions')
+  const managers = getContext<AppManagers>('managers')
 
   let dialogElement = $state<HTMLElement | undefined>(undefined)
   let savedCursorPosition = $state<[number, number] | null>(null)
@@ -26,7 +26,7 @@ Uses Editor component for syntax highlighting of configuration files.
   }
 
   function handleCancel(): void {
-    configService.close()
+    managers.configManager.closePane()
     onClose()
   }
 
@@ -73,10 +73,11 @@ Uses Editor component for syntax highlighting of configuration files.
       <h3>Settings</h3>
       <div class="settings-editor-container">
         <Editor
-          bind:value={configService.content}
+          bind:value={managers.configManager.content}
           filename="config.toml"
           onSave={handleSave}
-          onContentChange={(newValue) => (configService.content = newValue)}
+          onContentChange={(newValue) =>
+            (managers.configManager.content = newValue)}
           onExitCursorCapture={(line, column) =>
             (savedCursorPosition = [line, column])}
           initialCursor={savedCursorPosition}
