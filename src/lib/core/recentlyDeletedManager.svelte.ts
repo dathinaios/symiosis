@@ -4,7 +4,7 @@
  * Handles dialog visibility, selection state, and coordinates with backend services.
  */
 
-import type { DeletedFile } from '../services/versionService.svelte'
+import type { DeletedFile } from '../types/note'
 
 interface RecentlyDeletedState {
   isVisible: boolean

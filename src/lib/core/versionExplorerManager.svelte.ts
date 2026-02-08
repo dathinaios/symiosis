@@ -4,10 +4,8 @@
  * Handles dialog visibility, selection state, and coordinates with version service.
  */
 
-import type {
-  createVersionService,
-  NoteVersion,
-} from '../services/versionService.svelte'
+import type { createVersionService } from '../services/versionService.svelte'
+import type { NoteVersion } from '../types/note'
 
 interface VersionExplorerState {
   isVisible: boolean

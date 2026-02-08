@@ -15,7 +15,9 @@ const mockSearchManager = {
   setSearchInput: vi.fn(),
   setFilteredNotes: vi.fn(),
   searchInput: '',
-  filteredNotes: [{ filename: 'existing-note.md', modified: Date.now() / 1000 }],
+  filteredNotes: [
+    { filename: 'existing-note.md', modified: Date.now() / 1000 },
+  ],
   isLoading: false,
   clearSearch: vi.fn(),
   areHighlightsCleared: false,
@@ -216,8 +218,8 @@ describe('appCoordinator Integration Tests', () => {
       appCoordinator.managers.focusManager.setSelectedIndex(0)
       // Ensure filteredNotes has notes by default
       mockSearchManager.filteredNotes = [
-      { filename: 'existing-note.md', modified: Date.now() / 1000 },
-    ]
+        { filename: 'existing-note.md', modified: Date.now() / 1000 },
+      ]
     })
 
     it('should complete full note deletion workflow', async () => {
@@ -284,8 +286,8 @@ describe('appCoordinator Integration Tests', () => {
       mockSearchManager.searchInput = 'existing'
       // Ensure filteredNotes has notes by default
       mockSearchManager.filteredNotes = [
-      { filename: 'existing-note.md', modified: Date.now() / 1000 },
-    ]
+        { filename: 'existing-note.md', modified: Date.now() / 1000 },
+      ]
     })
 
     it('should complete full note rename workflow', async () => {

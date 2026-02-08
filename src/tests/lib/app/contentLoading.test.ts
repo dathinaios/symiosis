@@ -217,7 +217,11 @@ describe('Content Loading Integration', () => {
     let keyboardActions: ReturnType<typeof createKeyboardActions>
 
     beforeEach(() => {
-      mockSearchManager.filteredNotes = ['note1.md', 'note2.md', 'note3.md']
+      mockSearchManager.filteredNotes = toMetadata([
+        'note1.md',
+        'note2.md',
+        'note3.md',
+      ])
 
       keyboardActions = createKeyboardActions({
         focusManager: mockFocusManager,

@@ -5,21 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core'
-
-export interface NoteVersion {
-  filename: string
-  backup_type: string
-  timestamp: number
-  size: number
-  formatted_time: string
-}
-
-export interface DeletedFile {
-  filename: string
-  backup_filename: string
-  deleted_at: string
-  timestamp: number
-}
+import type { NoteVersion, DeletedFile } from '../types/note'
 
 export function createVersionService() {
   const state = $state({

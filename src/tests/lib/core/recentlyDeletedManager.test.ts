@@ -8,7 +8,7 @@ import {
   createRecentlyDeletedManager,
   type RecentlyDeletedManagerDeps,
 } from '../../../lib/core/recentlyDeletedManager.svelte'
-import type { DeletedFile } from '../../../lib/services/versionService.svelte'
+import type { DeletedFile } from '../../../lib/types/note'
 import { resetAllMocks } from '../../test-utils'
 
 const mockDeps = {

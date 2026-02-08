@@ -8,7 +8,7 @@ import {
   createVersionExplorerManager,
   type VersionExplorerManagerDeps,
 } from '../../../lib/core/versionExplorerManager.svelte'
-import type { NoteVersion } from '../../../lib/services/versionService.svelte'
+import type { NoteVersion } from '../../../lib/types/note'
 import { resetAllMocks } from '../../test-utils'
 
 const mockVersionService = {
