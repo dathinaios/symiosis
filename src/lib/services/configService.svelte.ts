@@ -52,13 +52,7 @@ export interface ConfigService {
     ui_themes: string[]
     markdown_themes: string[]
   }>
-  loadTheme(
-    theme: string,
-    validUIThemes?: string[],
-    customPath?: string
-  ): Promise<void>
-  loadMarkdownTheme(theme: string, customPath?: string): Promise<void>
-  loadHighlightJSTheme(theme: string): Promise<void>
+  loadCustomThemeFile(path: string): Promise<string>
   initDefaults(): Promise<void>
   getDefaultConfig(): AppConfig
 }
@@ -272,149 +266,8 @@ export function createConfigService(): ConfigService {
       return state.lastSaved
     },
 
-    async loadTheme(
-      theme: string,
-      validUIThemes: string[] = [],
-      customPath?: string
-    ): Promise<void> {
-      try {
-        const existingLink = document.head.querySelector('link[data-ui-theme]')
-        const existingStyle = document.head.querySelector(
-          'style[data-ui-theme]'
-        )
-        if (existingLink) {
-          existingLink.remove()
-        }
-        if (existingStyle) {
-          existingStyle.remove()
-        }
-
-        if (customPath) {
-          try {
-            const cssContent = await invoke<string>('load_custom_theme_file', {
-              path: customPath,
-            })
-            const style = document.createElement('style')
-            style.textContent = cssContent
-            style.setAttribute('data-ui-theme', 'custom')
-            document.head.appendChild(style)
-            return
-          } catch (error) {
-            console.error('Failed to load custom UI theme:', error)
-          }
-        }
-
-        if (validUIThemes.length > 0 && !validUIThemes.includes(theme)) {
-          console.warn(
-            `Unknown UI theme: ${theme}. Using gruvbox-dark as default.`
-          )
-          theme = 'gruvbox-dark'
-        }
-
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = `/css/ui-themes/${theme}.css`
-        link.setAttribute('data-ui-theme', theme)
-
-        document.head.appendChild(link)
-
-        await new Promise<void>((resolve) => {
-          link.onload = () => resolve()
-          link.onerror = () => resolve()
-        })
-      } catch (e) {
-        console.error('Failed to load UI theme:', e)
-      }
-    },
-
-    async loadMarkdownTheme(theme: string, customPath?: string): Promise<void> {
-      try {
-        const existingLink = document.head.querySelector(
-          'link[data-markdown-theme]'
-        )
-        const existingStyle = document.head.querySelector(
-          'style[data-markdown-theme]'
-        )
-        if (existingLink) {
-          existingLink.remove()
-        }
-        if (existingStyle) {
-          existingStyle.remove()
-        }
-
-        if (customPath) {
-          try {
-            const cssContent = await invoke<string>('load_custom_theme_file', {
-              path: customPath,
-            })
-            const style = document.createElement('style')
-            style.textContent = cssContent
-            style.setAttribute('data-markdown-theme', 'custom')
-            document.head.appendChild(style)
-            return
-          } catch (error) {
-            console.error('Failed to load custom markdown theme:', error)
-          }
-        }
-
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = `/css/md_render_themes/${theme}.css`
-        link.setAttribute('data-markdown-theme', theme)
-
-        document.head.appendChild(link)
-
-        await new Promise<void>((resolve) => {
-          link.onload = () => resolve()
-          link.onerror = () => resolve()
-        })
-      } catch (e) {
-        console.error('Failed to load markdown theme:', e)
-      }
-    },
-
-    async loadHighlightJSTheme(theme: string): Promise<void> {
-      try {
-        const existingLink = document.head.querySelector(
-          'link[data-highlight-theme]'
-        )
-        if (existingLink) {
-          existingLink.remove()
-        }
-
-        const getThemePath = (themeName: string): string => {
-          const gruvboxThemes = [
-            'gruvbox-dark-hard',
-            'gruvbox-dark-medium',
-            'gruvbox-dark-soft',
-            'gruvbox-light-hard',
-            'gruvbox-light-medium',
-            'gruvbox-light-soft',
-          ]
-          const isGruvboxTheme = gruvboxThemes.includes(themeName)
-          if (isGruvboxTheme) {
-            return `base16/${themeName}.css`
-          }
-          return `${themeName}.css`
-        }
-
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = `/highlight-js-themes/${getThemePath(theme)}`
-        link.setAttribute('data-highlight-theme', theme)
-
-        document.head.appendChild(link)
-
-        await new Promise<void>((resolve) => {
-          link.onload = () => resolve()
-          link.onerror = () => {
-            console.warn(`Failed to load highlight.js theme: ${theme}`)
-            resolve()
-          }
-        })
-      } catch (e) {
-        console.error('Failed to load highlight.js theme:', e)
-      }
+    async loadCustomThemeFile(path: string): Promise<string> {
+      return await invoke<string>('load_custom_theme_file', { path })
     },
   }
 }

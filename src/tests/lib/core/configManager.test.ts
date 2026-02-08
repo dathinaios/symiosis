@@ -10,6 +10,17 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(),
 }))
 
+vi.mock('$lib/utils/themeLoader', () => ({
+  loadUITheme: vi.fn().mockResolvedValue(undefined),
+  loadMarkdownTheme: vi.fn().mockResolvedValue(undefined),
+  loadHighlightJSTheme: vi.fn().mockResolvedValue(undefined),
+  removeAllThemes: vi.fn(),
+}))
+
+vi.mock('$lib/utils/cssVariables', () => ({
+  applyInterfaceConfig: vi.fn(),
+}))
+
 const mockDefaultConfig = {
   notes_directory: '/default/notes',
   global_shortcut: 'Ctrl+Shift+N',
@@ -169,9 +180,7 @@ describe('configManager', () => {
         ui_themes: ['gruvbox-dark', 'article', 'modern-dark'],
         markdown_themes: ['modern-dark', 'article', 'gruvbox-dark'],
       }),
-      loadTheme: vi.fn().mockResolvedValue(undefined),
-      loadMarkdownTheme: vi.fn().mockResolvedValue(undefined),
-      loadHighlightJSTheme: vi.fn().mockResolvedValue(undefined),
+      loadCustomThemeFile: vi.fn().mockResolvedValue(''),
       refreshCache: vi.fn().mockResolvedValue(undefined),
     }
 

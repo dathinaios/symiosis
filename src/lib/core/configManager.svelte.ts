@@ -7,6 +7,13 @@ import type {
   ShortcutsConfig,
   PreferencesConfig,
 } from '../types/config'
+import {
+  loadUITheme,
+  loadMarkdownTheme as loadMarkdownThemeUtil,
+  loadHighlightJSTheme as loadHighlightJSThemeUtil,
+  removeAllThemes,
+} from '../utils/themeLoader'
+import { applyInterfaceConfig } from '../utils/cssVariables'
 
 export interface ConfigManagerDeps {
   configService: {
@@ -20,13 +27,7 @@ export interface ConfigManagerDeps {
       ui_themes: string[]
       markdown_themes: string[]
     }>
-    loadTheme(
-      theme: string,
-      validUIThemes?: string[],
-      customPath?: string
-    ): Promise<void>
-    loadMarkdownTheme(theme: string, customPath?: string): Promise<void>
-    loadHighlightJSTheme(theme: string): Promise<void>
+    loadCustomThemeFile(path: string): Promise<string>
     initDefaults(): Promise<void>
   }
 }
@@ -138,21 +139,13 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
     }
   }
 
-  function applyInterfaceConfig(interfaceConfig: InterfaceConfig): void {
-    const root = document.documentElement
-    root.style.setProperty('--theme-font-family', interfaceConfig.font_family)
-    root.style.setProperty(
-      '--theme-font-size',
-      `${interfaceConfig.font_size}px`
-    )
-    root.style.setProperty(
-      '--theme-editor-font-family',
-      interfaceConfig.editor_font_family
-    )
-    root.style.setProperty(
-      '--theme-editor-font-size',
-      `${interfaceConfig.editor_font_size}px`
-    )
+  async function loadCustomCss(path: string): Promise<string | undefined> {
+    try {
+      return await deps.configService.loadCustomThemeFile(path)
+    } catch (error) {
+      console.error('Failed to load custom theme:', error)
+      return undefined
+    }
   }
 
   function updateConfigState(config: AppConfig): void {
@@ -178,26 +171,34 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
         config.interface.custom_ui_theme_path !==
           state.interface.custom_ui_theme_path
       ) {
-        deps.configService.loadTheme(
-          config.interface.ui_theme,
-          validUIThemes,
-          config.interface.custom_ui_theme_path
-        )
+        ;(async () => {
+          const customUiCss = config.interface.custom_ui_theme_path
+            ? await loadCustomCss(config.interface.custom_ui_theme_path)
+            : undefined
+          await loadUITheme(
+            config.interface.ui_theme,
+            validUIThemes,
+            customUiCss
+          )
+        })()
       }
       if (
         config.interface.markdown_render_theme !== previousMarkdownTheme ||
         config.interface.custom_markdown_theme_path !==
           state.interface.custom_markdown_theme_path
       ) {
-        deps.configService.loadMarkdownTheme(
-          config.interface.markdown_render_theme,
-          config.interface.custom_markdown_theme_path
-        )
+        ;(async () => {
+          const customMdCss = config.interface.custom_markdown_theme_path
+            ? await loadCustomCss(config.interface.custom_markdown_theme_path)
+            : undefined
+          await loadMarkdownThemeUtil(
+            config.interface.markdown_render_theme,
+            customMdCss
+          )
+        })()
       }
       if (config.interface.md_render_code_theme !== previousCodeTheme) {
-        deps.configService.loadHighlightJSTheme(
-          config.interface.md_render_code_theme
-        )
+        loadHighlightJSThemeUtil(config.interface.md_render_code_theme)
       }
     }
   }
@@ -248,18 +249,18 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
 
   async function setupThemes(interfaceConfig: InterfaceConfig): Promise<void> {
     applyInterfaceConfig(interfaceConfig)
-    await deps.configService.loadTheme(
-      interfaceConfig.ui_theme,
-      validUIThemes,
-      interfaceConfig.custom_ui_theme_path
-    )
-    await deps.configService.loadMarkdownTheme(
+    const customUiCss = interfaceConfig.custom_ui_theme_path
+      ? await loadCustomCss(interfaceConfig.custom_ui_theme_path)
+      : undefined
+    await loadUITheme(interfaceConfig.ui_theme, validUIThemes, customUiCss)
+    const customMdCss = interfaceConfig.custom_markdown_theme_path
+      ? await loadCustomCss(interfaceConfig.custom_markdown_theme_path)
+      : undefined
+    await loadMarkdownThemeUtil(
       interfaceConfig.markdown_render_theme,
-      interfaceConfig.custom_markdown_theme_path
+      customMdCss
     )
-    await deps.configService.loadHighlightJSTheme(
-      interfaceConfig.md_render_code_theme
-    )
+    await loadHighlightJSThemeUtil(interfaceConfig.md_render_code_theme)
     state.isThemeInitialized = true
   }
 
@@ -331,35 +332,7 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
       unlistenConfigChanged = null
     }
 
-    // Remove theme links and styles
-    const markdownThemeLink = document.head.querySelector(
-      'link[data-markdown-theme]'
-    )
-    const markdownThemeStyle = document.head.querySelector(
-      'style[data-markdown-theme]'
-    )
-    if (markdownThemeLink) {
-      markdownThemeLink.remove()
-    }
-    if (markdownThemeStyle) {
-      markdownThemeStyle.remove()
-    }
-
-    const uiThemeLink = document.head.querySelector('link[data-ui-theme]')
-    const uiThemeStyle = document.head.querySelector('style[data-ui-theme]')
-    if (uiThemeLink) {
-      uiThemeLink.remove()
-    }
-    if (uiThemeStyle) {
-      uiThemeStyle.remove()
-    }
-
-    const highlightThemeLink = document.head.querySelector(
-      'link[data-highlight-theme]'
-    )
-    if (highlightThemeLink) {
-      highlightThemeLink.remove()
-    }
+    removeAllThemes()
 
     state.isInitialized = false
     state.isThemeInitialized = false
@@ -426,10 +399,14 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
     initialize,
     cleanup,
     forceRefresh,
-    loadTheme: (theme: string, customPath?: string) =>
-      deps.configService.loadTheme(theme, validUIThemes, customPath),
-    loadMarkdownTheme: (theme: string, customPath?: string) =>
-      deps.configService.loadMarkdownTheme(theme, customPath),
-    loadHighlightJSTheme: deps.configService.loadHighlightJSTheme,
+    loadTheme: async (theme: string, customPath?: string) => {
+      const customCss = customPath ? await loadCustomCss(customPath) : undefined
+      await loadUITheme(theme, validUIThemes, customCss)
+    },
+    loadMarkdownTheme: async (theme: string, customPath?: string) => {
+      const customCss = customPath ? await loadCustomCss(customPath) : undefined
+      await loadMarkdownThemeUtil(theme, customCss)
+    },
+    loadHighlightJSTheme: loadHighlightJSThemeUtil,
   }
 }
