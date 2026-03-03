@@ -12,15 +12,14 @@ where
 {
     app_state
         .programmatic_operation_in_progress()
-        .store(true, std::sync::atomic::Ordering::Relaxed);
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     let result = operation();
 
-    // Spawn background thread to clear flag after delay - NON-BLOCKING
     let prog_flag = Arc::clone(&app_state.programmatic_operation_in_progress);
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_secs(5)); // Long enough for watcher to process
-        prog_flag.store(false, std::sync::atomic::Ordering::Relaxed);
+        std::thread::sleep(Duration::from_secs(5));
+        prog_flag.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
     });
 
     result

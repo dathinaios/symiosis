@@ -182,12 +182,12 @@ fn handle_file_system_event(
         None,
     );
 
-    let prog_op_in_progress = app_state
+    let prog_op_count = app_state
         .programmatic_operation_in_progress()
         .load(Ordering::Relaxed);
 
     #[cfg(debug_assertions)]
-    if prog_op_in_progress {
+    if prog_op_count > 0 {
         log(
             "WATCHER_EVENT",
             "⏸️  Skipping - programmatic operation in progress",
@@ -195,7 +195,7 @@ fn handle_file_system_event(
         );
     }
 
-    if !prog_op_in_progress {
+    if prog_op_count == 0 {
         let should_process = event
             .paths
             .iter()
