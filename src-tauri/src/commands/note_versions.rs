@@ -11,6 +11,7 @@ use crate::{
 };
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
+use walkdir::WalkDir;
 
 #[derive(serde::Serialize)]
 pub struct NoteVersion {
@@ -50,9 +51,19 @@ pub fn get_note_versions(
             std::borrow::Cow::from(note_name)
         };
 
+        let note_path = notes_dir.join(note_name);
+        let note_backup_dir = crate::utilities::file_safety::safe_backup_path(&note_path)
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+            .unwrap_or_else(|| backup_dir.clone());
+
+        if !note_backup_dir.exists() {
+            return Ok(Vec::new());
+        }
+
         let mut versions = Vec::new();
 
-        if let Ok(entries) = fs::read_dir(&backup_dir) {
+        if let Ok(entries) = fs::read_dir(&note_backup_dir) {
             for entry in entries.flatten() {
                 let filename = entry.file_name().to_string_lossy().to_string();
 
@@ -61,9 +72,14 @@ pub fn get_note_versions(
                     if let Ok(metadata) = entry.metadata() {
                         let size = metadata.len();
                         let formatted_time = format_timestamp_for_humans(timestamp);
+                        let relative_filename = entry
+                            .path()
+                            .strip_prefix(&backup_dir)
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or(filename);
 
                         versions.push(NoteVersion {
-                            filename: filename.clone(),
+                            filename: relative_filename,
                             backup_type,
                             timestamp,
                             size,
@@ -163,22 +179,45 @@ pub fn get_deleted_files(
 
         let mut deleted_files = Vec::new();
 
-        if let Ok(entries) = fs::read_dir(&backup_dir) {
-            for entry in entries.flatten() {
-                let filename = entry.file_name().to_string_lossy().to_string();
+        for entry in WalkDir::new(&backup_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+        {
+            let filename = entry.file_name().to_string_lossy().to_string();
 
-                if let Some((original_filename, timestamp)) =
-                    parse_deleted_backup_filename(&filename)
-                {
-                    let formatted_time = format_timestamp_for_humans(timestamp);
+            if let Some((flat_original, timestamp)) = parse_deleted_backup_filename(&filename) {
+                let base_stem = flat_original
+                    .strip_suffix(".md")
+                    .unwrap_or(&flat_original)
+                    .to_string();
 
-                    deleted_files.push(DeletedFile {
-                        filename: original_filename,
-                        backup_filename: filename,
-                        deleted_at: formatted_time,
-                        timestamp,
-                    });
-                }
+                let subdir = entry
+                    .path()
+                    .parent()
+                    .and_then(|p| p.strip_prefix(&backup_dir).ok())
+                    .filter(|p| !p.as_os_str().is_empty())
+                    .map(|p| p.to_string_lossy().to_string());
+
+                let original_filename = match &subdir {
+                    Some(d) => format!("{}/{}.md", d, base_stem),
+                    None => format!("{}.md", base_stem),
+                };
+
+                let backup_filename_rel = entry
+                    .path()
+                    .strip_prefix(&backup_dir)
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or(filename);
+
+                let formatted_time = format_timestamp_for_humans(timestamp);
+
+                deleted_files.push(DeletedFile {
+                    filename: original_filename,
+                    backup_filename: backup_filename_rel,
+                    deleted_at: formatted_time,
+                    timestamp,
+                });
             }
         }
 

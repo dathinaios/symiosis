@@ -51,19 +51,8 @@ pub fn create_versioned_backup(
 
     let backup_filename = generate_backup_filename(note_filename, &backup_type, timestamp);
 
-    let backup_path = match backup_type {
-        BackupType::Rollback => {
-            // For rollback backups, use the existing path structure
-            let mut path = safe_backup_path(note_path)?;
-            path.set_file_name(backup_filename);
-            path
-        }
-        _ => {
-            // For other backup types, use backup directory structure
-            let backup_dir = get_backup_dir_for_notes_path(&get_config_notes_dir())?;
-            backup_dir.join(backup_filename)
-        }
-    };
+    let mut backup_path = safe_backup_path(note_path)?;
+    backup_path.set_file_name(&backup_filename);
 
     if let Some(backup_parent) = backup_path.parent() {
         fs::create_dir_all(backup_parent)?;
