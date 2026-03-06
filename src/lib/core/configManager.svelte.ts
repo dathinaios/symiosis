@@ -197,7 +197,7 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
             validUIThemes,
             customUiCss
           )
-        })()
+        })().catch(console.error)
       }
       if (
         config.interface.markdown_render_theme !== previousMarkdownTheme ||
@@ -212,7 +212,7 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
             config.interface.markdown_render_theme,
             customMdCss
           )
-        })()
+        })().catch(console.error)
       }
       if (config.interface.md_render_code_theme !== previousCodeTheme) {
         loadHighlightJSThemeUtil(config.interface.md_render_code_theme)

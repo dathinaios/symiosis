@@ -207,7 +207,9 @@ fn process_modified_file(
     fs_modified: i64,
     index: usize,
 ) -> rusqlite::Result<()> {
-    let content = fs::read_to_string(path).unwrap_or_default();
+    let Ok(content) = fs::read_to_string(path) else {
+        return Ok(());
+    };
 
     if index < IMMEDIATE_RENDER_COUNT {
         let html_render = crate::utilities::note_renderer::render_note(filename, &content);
@@ -230,7 +232,9 @@ fn update_unindexed_file(
     filename: &str,
     path: &PathBuf,
 ) -> rusqlite::Result<()> {
-    let content = fs::read_to_string(path).unwrap_or_default();
+    let Ok(content) = fs::read_to_string(path) else {
+        return Ok(());
+    };
     let html_render = crate::utilities::note_renderer::render_note(filename, &content);
     tx.execute(
         "UPDATE notes SET html_render = ?2, is_indexed = ?3 WHERE filename = ?1",

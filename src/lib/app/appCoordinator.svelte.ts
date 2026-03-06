@@ -580,7 +580,7 @@ export function createAppCoordinator(
           noteActions.renameNote(selectedNote, newName),
         saveNote: () => noteActions.saveNote(),
         saveAndExitNote,
-        enterEditMode: () => noteActions.enterEditMode(selectedNote!),
+        enterEditMode: () => selectedNote ? noteActions.enterEditMode(selectedNote) : Promise.resolve(),
         exitEditMode,
         refreshCacheAndUI,
         saveConfigAndRefresh,
