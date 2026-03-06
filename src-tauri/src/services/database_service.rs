@@ -71,6 +71,13 @@ fn ensure_notes_directory_exists() -> rusqlite::Result<()> {
     Ok(())
 }
 
+fn is_note_file(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| matches!(ext, "md" | "txt" | "markdown"))
+        .unwrap_or(false)
+}
+
 fn scan_filesystem_for_notes() -> rusqlite::Result<Vec<(String, PathBuf, i64)>> {
     let notes_dir = get_config_notes_dir();
     let mut filesystem_files = Vec::new();
@@ -82,6 +89,10 @@ fn scan_filesystem_for_notes() -> rusqlite::Result<Vec<(String, PathBuf, i64)>> 
             let filename = relative.to_string_lossy().to_string();
 
             if filename.contains("/.") || filename.starts_with('.') {
+                continue;
+            }
+
+            if !is_note_file(path) {
                 continue;
             }
 
@@ -387,8 +398,7 @@ pub fn quick_filesystem_sync_check(app_state: &AppState) -> AppResult<bool> {
                     return false;
                 }
 
-                // Only include .md files
-                path.extension().map_or(false, |ext| ext == "md")
+                is_note_file(path)
             })
             .collect();
 
