@@ -257,20 +257,35 @@ fn perform_atomic_write_with_rollback(
     content: &str,
     rollback_backup_path: Option<&PathBuf>,
 ) -> AppResult<()> {
-    if let Err(e) = fs::rename(temp_path, note_path) {
+    if let Err(rename_err) = fs::rename(temp_path, note_path) {
+        // fs::rename fails across filesystems (EXDEV). Fall back to copy + delete.
+        if fs::copy(temp_path, note_path).is_ok() {
+            cleanup_temp_file(temp_path);
+            log(
+                "FILE_OPERATION",
+                &format!(
+                    "WRITE: {} | Size: {} bytes | COPY_FALLBACK | SUCCESS",
+                    note_path.display(),
+                    content.len()
+                ),
+                None,
+            );
+            return Ok(());
+        }
+
         log(
             "ATOMIC_WRITE_FAILURE",
             &format!(
                 "Rename operation failed: {:?} -> {:?}",
                 temp_path, note_path
             ),
-            Some(&e.to_string()),
+            Some(&rename_err.to_string()),
         );
 
         handle_rename_failure_with_rollback(temp_path, note_path, content, rollback_backup_path)?;
         return Err(AppError::FileWrite(format!(
-            "Failed to rename temp file (rollback completed): {}",
-            e
+            "Failed to write file (rollback completed): {}",
+            rename_err
         )));
     }
 
