@@ -32,26 +32,6 @@ pub enum AppError {
     WindowOperation(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "level")]
-pub enum OperationResult<T> {
-    Success {
-        data: T,
-    },
-    SuccessWithWarning {
-        data: T,
-        warning: String,
-    },
-    PartialSuccess {
-        completed: Vec<String>,
-        failed: Vec<String>,
-        data: Option<T>,
-    },
-    Failed {
-        error: AppError,
-    },
-}
-
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
