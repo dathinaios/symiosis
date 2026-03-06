@@ -23,12 +23,10 @@ describe('configService', () => {
       expect(exists).toBe(true)
     })
 
-    it('should handle errors when checking config existence', async () => {
+    it('should propagate errors when checking config existence', async () => {
       mockInvoke.mockRejectedValueOnce(new Error('Access denied'))
 
-      const exists = await configService.exists()
-
-      expect(exists).toBe(false)
+      await expect(configService.exists()).rejects.toThrow('Access denied')
     })
 
     it('should refresh cache manually', async () => {

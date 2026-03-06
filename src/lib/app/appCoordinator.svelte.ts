@@ -399,13 +399,28 @@ export function createAppCoordinator(
   }
 
   async function initializeNotesAndUI(): Promise<void> {
-    const configExists = await configService.exists()
+    const { notification } = await import('../utils/notification')
+
+    let configExists: boolean
+    try {
+      configExists = await configService.exists()
+    } catch (e) {
+      console.error('Failed to check config existence:', e)
+      await notification.error(
+        'Failed to load configuration. Please restart the app.'
+      )
+      return
+    }
+
     if (!configExists) {
       await settingsActions.openSettingsPane()
     } else {
       const result = await noteService.initializeDatabase()
       if (!result.success) {
         console.error('Failed to initialize notes:', result.error)
+        await notification.error(
+          'Failed to initialize notes database. Some notes may be unavailable.'
+        )
       }
 
       focusManager.focusSearch()
@@ -580,7 +595,10 @@ export function createAppCoordinator(
           noteActions.renameNote(selectedNote, newName),
         saveNote: () => noteActions.saveNote(),
         saveAndExitNote,
-        enterEditMode: () => selectedNote ? noteActions.enterEditMode(selectedNote) : Promise.resolve(),
+        enterEditMode: () =>
+          selectedNote
+            ? noteActions.enterEditMode(selectedNote)
+            : Promise.resolve(),
         exitEditMode,
         refreshCacheAndUI,
         saveConfigAndRefresh,

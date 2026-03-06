@@ -62,12 +62,7 @@ export function createConfigService(): ConfigService {
   }
 
   async function exists(): Promise<boolean> {
-    try {
-      return await invoke<boolean>('config_exists')
-    } catch (e) {
-      console.error('Failed to check config existence:', e)
-      return false
-    }
+    return await invoke<boolean>('config_exists')
   }
 
   async function getConfigContent(): Promise<string> {
