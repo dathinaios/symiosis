@@ -171,15 +171,17 @@ fn prune_old_backups(latest_backup: &PathBuf, max_backups: usize) -> AppResult<(
         .ok_or_else(|| AppError::InvalidPath("Invalid backup filename".to_string()))?;
 
     // Extract the base pattern: {base_name}.{suffix}.{timestamp}.md
-    // We want to match all files with the same base_name and suffix but different timestamps
-    let parts: Vec<&str> = filename.splitn(4, '.').collect();
-    if parts.len() < 4 {
+    // Parse right-to-left so base_name can contain dots (e.g. "my.project.md")
+    let without_ext = match filename.strip_suffix(".md") {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+    let parts: Vec<&str> = without_ext.rsplitn(3, '.').collect();
+    // parts[0] = timestamp, parts[1] = suffix, parts[2] = base_name
+    if parts.len() < 3 {
         return Ok(()); // Invalid backup filename format, skip pruning
     }
-
-    let base_name = parts[0];
-    let suffix = parts[1];
-    let pattern_prefix = format!("{}.{}", base_name, suffix);
+    let pattern_prefix = format!("{}.{}", parts[2], parts[1]);
 
     let mut backups: Vec<_> = fs::read_dir(parent)?
         .filter_map(|entry| entry.ok())
