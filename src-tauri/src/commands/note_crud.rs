@@ -191,7 +191,7 @@ pub fn rename_note(
         let old_path = notes_dir.join(&old_name);
         let new_path = notes_dir.join(&new_name);
 
-        match create_rename_backup_with_target_check(&old_path, &new_path, &new_name)? {
+        match create_rename_backup(&old_path)? {
             Some(backup_path) => perform_atomic_rename_with_database(
                 &old_path,
                 &new_path,
@@ -393,30 +393,11 @@ fn perform_safe_write_and_update(
     }
 }
 
-fn create_rename_backup_with_target_check(
-    old_path: &std::path::PathBuf,
-    new_path: &std::path::PathBuf,
-    new_name: &str,
-) -> AppResult<Option<std::path::PathBuf>> {
+fn create_rename_backup(old_path: &std::path::PathBuf) -> AppResult<Option<std::path::PathBuf>> {
     let backup_result = create_versioned_backup(old_path, BackupType::Rename, None);
 
     match backup_result {
-        Ok(backup_path) => {
-            if new_path.exists() {
-                if let Err(e) = fs::remove_file(&backup_path) {
-                    log(
-                        "BACKUP_CLEANUP",
-                        &format!("Failed to remove backup file: {:?}", backup_path),
-                        Some(&e.to_string()),
-                    );
-                }
-                return Err(AppError::InvalidNoteName(format!(
-                    "Note '{}' already exists",
-                    new_name
-                )));
-            }
-            Ok(Some(backup_path))
-        }
+        Ok(backup_path) => Ok(Some(backup_path)),
         Err(e) => match &e {
             AppError::FileNotFound(_) => Ok(None),
             _ => Err(e),
@@ -545,6 +526,14 @@ fn perform_atomic_rename_with_database(
     app_state: &tauri::State<crate::core::state::AppState>,
 ) -> AppResult<()> {
     ensure_parent_directory_exists(new_path)?;
+
+    if new_path.exists() {
+        cleanup_backup_file(&backup_path);
+        return Err(AppError::InvalidNoteName(format!(
+            "Note '{}' already exists",
+            new_name
+        )));
+    }
 
     let rename_result = perform_atomic_file_rename(app_state, old_path, new_path);
 
