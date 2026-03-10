@@ -463,9 +463,18 @@ export function createAppCoordinator(
   }
 
   async function refreshUI(): Promise<void> {
-    await searchManager.executeSearch('')
-    contentManager.setNoteContent('')
-    focusManager.setSelectedIndex(0)
+    const previousQuery = searchManager.searchInput
+    const previousNote = selectedNote
+
+    await searchManager.executeSearch(previousQuery)
+
+    if (previousNote) {
+      const idx = filteredNotes.findIndex((n) => n.filename === previousNote)
+      if (idx >= 0) {
+        focusManager.setSelectedIndex(idx)
+        await loadNoteContent(previousNote)
+      }
+    }
   }
 
   async function saveConfigAndRefresh(): Promise<{
