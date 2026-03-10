@@ -26,15 +26,10 @@ pub fn open_note_in_editor(
                 .map_err(AppError::from)?;
 
             #[cfg(target_os = "windows")]
-            {
-                let path_str = note_path
-                    .to_str()
-                    .ok_or_else(|| AppError::InvalidPath("Invalid path encoding".to_string()))?;
-                std::process::Command::new("cmd")
-                    .args(["/c", "start", "", path_str])
-                    .status()
-                    .map_err(AppError::from)?;
-            }
+            std::process::Command::new("explorer")
+                .arg(&note_path)
+                .status()
+                .map_err(AppError::from)?;
 
             #[cfg(target_os = "linux")]
             std::process::Command::new("xdg-open")

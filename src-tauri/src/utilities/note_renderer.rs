@@ -1,8 +1,10 @@
 use crate::core::errors::{AppError, AppResult};
+use ammonia::Builder;
 use html_escape;
 use once_cell::sync::Lazy;
 use pulldown_cmark::{html, Options, Parser};
 use regex::Regex;
+use std::collections::HashSet;
 
 static URL_REGEX: Lazy<Result<Regex, regex::Error>> =
     Lazy::new(|| Regex::new(r#"(?i)\b(https?://[^\s<>"'`()\[\]{}]+)\b"#));
@@ -50,6 +52,108 @@ pub(crate) fn linkify_urls_in_html(html: &str) -> AppResult<String> {
     Ok(result)
 }
 
+fn sanitize_html(html: &str) -> String {
+    let allowed_tags: HashSet<&str> = [
+        "a",
+        "abbr",
+        "acronym",
+        "area",
+        "article",
+        "aside",
+        "b",
+        "bdi",
+        "bdo",
+        "blockquote",
+        "br",
+        "caption",
+        "center",
+        "cite",
+        "code",
+        "col",
+        "colgroup",
+        "data",
+        "dd",
+        "del",
+        "details",
+        "dfn",
+        "div",
+        "dl",
+        "dt",
+        "em",
+        "figcaption",
+        "figure",
+        "footer",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "header",
+        "hgroup",
+        "hr",
+        "i",
+        "img",
+        "ins",
+        "kbd",
+        "li",
+        "map",
+        "mark",
+        "nav",
+        "ol",
+        "p",
+        "pre",
+        "q",
+        "rp",
+        "rt",
+        "rtc",
+        "ruby",
+        "s",
+        "samp",
+        "section",
+        "small",
+        "span",
+        "strong",
+        "sub",
+        "summary",
+        "sup",
+        "table",
+        "tbody",
+        "td",
+        "tfoot",
+        "th",
+        "thead",
+        "time",
+        "tr",
+        "tt",
+        "u",
+        "ul",
+        "var",
+        "wbr",
+        "input",
+    ]
+    .into_iter()
+    .collect();
+
+    let mut tag_attributes: std::collections::HashMap<&str, HashSet<&str>> =
+        std::collections::HashMap::new();
+    tag_attributes.insert(
+        "input",
+        ["type", "checked", "disabled"].into_iter().collect(),
+    );
+    tag_attributes.insert("td", ["align"].into_iter().collect());
+    tag_attributes.insert("th", ["align"].into_iter().collect());
+    tag_attributes.insert("img", ["src", "alt", "title"].into_iter().collect());
+
+    Builder::default()
+        .tags(allowed_tags)
+        .tag_attributes(tag_attributes)
+        .add_generic_attributes(["id", "class"])
+        .link_rel(Some("noopener noreferrer"))
+        .clean(html)
+        .to_string()
+}
+
 pub fn render_note(filename: &str, content: &str) -> String {
     if filename.ends_with(".md") || filename.ends_with(".markdown") {
         let mut options = Options::empty();
@@ -62,6 +166,8 @@ pub fn render_note(filename: &str, content: &str) -> String {
         let parser = Parser::new_ext(content, options);
         let mut html_output = String::new();
         html::push_html(&mut html_output, parser);
+
+        let html_output = sanitize_html(&html_output);
 
         match linkify_urls_in_html(&html_output) {
             Ok(result) => result,

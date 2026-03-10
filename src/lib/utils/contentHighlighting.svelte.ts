@@ -18,6 +18,15 @@ function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function cleanExpiredEntries(): void {
   const now = Date.now()
   for (const [key, entry] of highlightCache) {
@@ -91,10 +100,11 @@ export function getHighlightedTitle(
   query: string,
   hideHighlights: boolean = false
 ): string {
+  const escaped = escapeHtml(title)
   if (!query.trim() || query.length < 3 || hideHighlights) {
-    return title
+    return escaped
   }
-  return highlightMatches(title, query)
+  return highlightMatches(escaped, query)
 }
 
 export function clearHighlightCache(): void {

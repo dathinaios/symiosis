@@ -10,8 +10,23 @@ use crate::{
     },
 };
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
+
+fn validate_backup_path(backup_dir: &Path, relative_name: &str) -> AppResult<PathBuf> {
+    let joined = backup_dir.join(relative_name);
+    let canonical_base = backup_dir
+        .canonicalize()
+        .map_err(|_| AppError::FileNotFound("Backup directory not found".to_string()))?;
+    let canonical_path = joined
+        .canonicalize()
+        .map_err(|_| AppError::FileNotFound(format!("Backup file not found: {}", relative_name)))?;
+    if !canonical_path.starts_with(&canonical_base) {
+        return Err(AppError::PathTraversal);
+    }
+    Ok(canonical_path)
+}
 
 #[derive(serde::Serialize)]
 pub struct NoteVersion {
@@ -107,14 +122,7 @@ pub fn get_version_content(
         let config = app_state.config.read().unwrap_or_else(|e| e.into_inner());
         let notes_dir = std::path::PathBuf::from(&config.notes_directory);
         let backup_dir = crate::utilities::paths::get_backup_dir_for_notes_path(&notes_dir)?;
-        let version_path = backup_dir.join(version_filename);
-
-        if !version_path.exists() {
-            return Err(AppError::FileNotFound(format!(
-                "Version file not found: {}",
-                version_filename
-            )));
-        }
+        let version_path = validate_backup_path(&backup_dir, version_filename)?;
 
         let content = fs::read_to_string(&version_path)?;
         Ok(content)
@@ -135,16 +143,8 @@ pub fn recover_note_version(
         let notes_dir = std::path::PathBuf::from(&config.notes_directory);
         let note_path = notes_dir.join(note_name);
         let backup_dir = crate::utilities::paths::get_backup_dir_for_notes_path(&notes_dir)?;
-        let version_path = backup_dir.join(version_filename);
+        let version_path = validate_backup_path(&backup_dir, version_filename)?;
 
-        if !version_path.exists() {
-            return Err(AppError::FileNotFound(format!(
-                "Version file not found: {}",
-                version_filename
-            )));
-        }
-
-        // Read the version content
         let version_content = fs::read_to_string(&version_path)?;
 
         // Use the same programmatic flag and safe write as normal saves
@@ -261,14 +261,7 @@ pub fn recover_deleted_file(
         );
         let note_path = notes_dir.join(original_filename);
         let backup_dir = crate::utilities::paths::get_backup_dir_for_notes_path(&notes_dir)?;
-        let backup_path = backup_dir.join(backup_filename);
-
-        if !backup_path.exists() {
-            return Err(AppError::FileNotFound(format!(
-                "Deleted file backup not found: {}",
-                backup_filename
-            )));
-        }
+        let backup_path = validate_backup_path(&backup_dir, backup_filename)?;
 
         // Check if target file already exists
         if note_path.exists() {
