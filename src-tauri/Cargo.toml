@@ -1,6 +1,6 @@
 [package]
 name = "Symiosis"
-version = "0.3.3"
+version = "0.3.6"
 description = "Notational Velocity inspired notes app with instant search, in place markdown rendering, and vim/emacs editing modes."
 authors = ["Dionysis Athinaios"]
 edition = "2021"
