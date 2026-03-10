@@ -288,7 +288,7 @@ pub fn recover_deleted_file(
         update_note_in_database(&app_state, original_filename, &backup_content, modified)?;
 
         // Remove the backup file after successful recovery
-        fs::remove_file(&backup_path)?;
+        let _ = fs::remove_file(&backup_path);
 
         Ok(())
     }();
