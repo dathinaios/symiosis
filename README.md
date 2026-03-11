@@ -80,7 +80,7 @@ On first run, a default configuration file is created automatically with sensibl
 - `font_size` - UI font size in pixels (default: `14`)
 - `editor_font_family` - Editor font family (default: `"JetBrains Mono, Consolas, monospace"`)
 - `editor_font_size` - Editor font size in pixels (default: `14`)
-- `markdown_render_theme` - Theme for rendered markdown content (default: `"modern_dark"`)
+- `markdown_render_theme` - Theme for rendered markdown content (default: `"modern-dark"`)
 - `md_render_code_theme` - Syntax highlighting theme for code blocks (default: `"gruvbox-dark-medium"`)
 
 **Custom Theme Paths:** *(requires restart)*
@@ -94,7 +94,7 @@ When custom theme paths are provided, they take precedence over the theme names.
 [interface]
 ui_theme = "gruvbox-dark"                              # Fallback theme
 custom_ui_theme_path = "/Users/username/my-theme.css"  # Custom override
-markdown_render_theme = "modern_dark"                  # Fallback theme
+markdown_render_theme = "modern-dark"                  # Fallback theme
 custom_markdown_theme_path = "/Users/username/my-md-theme.css"  # Custom override
 ```
 
@@ -177,7 +177,7 @@ font_family = "Inter, sans-serif"
 font_size = 14
 editor_font_family = "JetBrains Mono, Consolas, monospace"
 editor_font_size = 14
-markdown_render_theme = "modern_dark"
+markdown_render_theme = "modern-dark"
 md_render_code_theme = "gruvbox-dark-medium"
 always_on_top = false
 window_decorations = true
