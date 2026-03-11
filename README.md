@@ -4,13 +4,19 @@ Symiosis is a desktop note-taking application inspired by Notational Velocity th
 
 ![](resources/symiosis.gif)
 
+---
+
 ## Status
 
 **Early Release (α)**
 
 - The app is functional and ready to use, but things may change as improvements are made. Some features might not work perfectly yet.
-- Note versions are kept and care has been taken to avoid data loss. Still, since this is a new project, **I recommend keeping regular backups**.
 - Currently tested officially on macOS. Contributions / feedback for Windows & Linux support are appreciated.
+
+> [!WARNING]
+> Note versions are kept and care has been taken to avoid data loss, but since this is a new project, regular backups are recommended.
+
+---
 
 ## Features
 
@@ -18,6 +24,8 @@ Symiosis is a desktop note-taking application inspired by Notational Velocity th
 *   **Markdown Render in Place:** Notes are explored and read as beautiful rendered markdown.
 *   **Code Editor:** Seamlessly switch between viewing and editing modes.
 *   **Keyboard-Driven Workflow:** Navigate and manage notes entirely with keyboard shortcuts.
+
+---
 
 ## Usage
 
@@ -53,6 +61,8 @@ Usual keys like arrows etc. will also work.
 *   **`Meta + ,` (Cmd + , on Mac):** Open settings panel.
 *   **`Ctrl + /`:** Open version explorer for the currently selected note.
 *   **`Ctrl + .`:** Open recently deleted notes dialog to restore deleted notes.
+
+---
 
 ## Configuration
 
@@ -115,7 +125,7 @@ On first run, a default configuration file is created automatically with sensibl
 - `custom_ui_theme_path` - Path to custom UI theme CSS file (optional)
 - `custom_markdown_theme_path` - Path to custom markdown theme CSS file (optional)
 
-When custom theme paths are provided, they take precedence over the theme names. If a custom file fails to load, the app falls back to the specified theme name. Both options require an application restart to take effect.
+When custom theme paths are provided, they take precedence over the theme names. If a custom file fails to load, the app falls back to the specified theme name.
 
 ```toml
 [interface]
@@ -243,6 +253,8 @@ max_search_results = 100
 
 </details>
 
+---
+
 ## Development
 
 ### Using Development Mode
@@ -277,9 +289,10 @@ If you're developing Symiosis and want to keep your development data separate fr
 
 4. **To disable development mode**, simply delete or rename the dev config file for your platform.
 
+---
+
 ## License
 
 This project is licensed under the GNU General Public License v2.0 (GPL-2.0).
 
 See [LICENSE](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) for the full license text.
-
