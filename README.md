@@ -83,13 +83,31 @@ On first run, a default configuration file is created automatically with sensibl
 - `markdown_render_theme` - Theme for rendered markdown content (default: `"modern-dark"`)
 - `md_render_code_theme` - Syntax highlighting theme for code blocks (default: `"gruvbox-dark-medium"`)
 
-**Custom Theme Paths:** *(requires restart)*
+##### Available UI Themes
+`gruvbox-dark` &nbsp; `article` &nbsp; `modern-dark`
+
+##### Available Markdown Render Themes
+`modern-dark` &nbsp; `article` &nbsp; `gruvbox-dark`
+
+##### Available Code Highlighting Themes
+
+| Gruvbox | Dark | Light |
+|---|---|---|
+| `gruvbox-dark-hard` | `atom-one-dark` | `atom-one-light` |
+| `gruvbox-dark-medium` | `dracula` | `github` |
+| `gruvbox-dark-soft` | `nord` | `vs` |
+| `gruvbox-light-hard` | `monokai` | `xcode` |
+| `gruvbox-light-medium` | `github-dark` | `tokyo-night-light` |
+|  | `vs2015` |  |
+|  | `night-owl` |  |
+|  | `tokyo-night-dark` |  |
+
+##### Custom Theme Paths *(requires restart)*
 - `custom_ui_theme_path` - Path to custom UI theme CSS file (optional)
 - `custom_markdown_theme_path` - Path to custom markdown theme CSS file (optional)
 
 When custom theme paths are provided, they take precedence over the theme names. If a custom file fails to load, the app falls back to the specified theme name. Both options require an application restart to take effect.
 
-**Example custom theme usage:**
 ```toml
 [interface]
 ui_theme = "gruvbox-dark"                              # Fallback theme
@@ -98,26 +116,9 @@ markdown_render_theme = "modern-dark"                  # Fallback theme
 custom_markdown_theme_path = "/Users/username/my-md-theme.css"  # Custom override
 ```
 
-Note: Custom theme files must be absolute paths and have a `.css` extension.
+> Custom theme files must be absolute paths and have a `.css` extension.
 
-**Available UI Themes:**
-`gruvbox-dark`, `article`, `modern-dark`
-
-**Available Markdown Render Themes:**
-`modern-dark`, `article`, `gruvbox-dark`
-
-**Available Code Highlighting Themes:**
-
-*Gruvbox Variants:*
-`gruvbox-dark-hard`, `gruvbox-dark-medium`, `gruvbox-dark-soft`, `gruvbox-light-hard`, `gruvbox-light-medium`
-
-*Popular Dark Themes:*
-`atom-one-dark`, `dracula`, `nord`, `monokai`, `github-dark`, `vs2015`, `night-owl`, `tokyo-night-dark`
-
-*Popular Light Themes:*
-`atom-one-light`, `github`, `vs`, `xcode`, `tokyo-night-light`
-
-**Window Settings:**
+##### Window Settings
 - `always_on_top` - Keep window always on top (default: `false`) *(requires restart)*
 - `window_decorations` - Show window title bar and borders (default: `true`) *(requires restart)* **[Linux only - not yet implemented on macOS/Windows]**
 
