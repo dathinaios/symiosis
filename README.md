@@ -1,6 +1,6 @@
 # Symiosis <a href="http://fasmatwist.com"><img src="https://user-images.githubusercontent.com/481589/216767388-d94cdd88-dc8f-4f95-9d87-1275583fb73b.jpg" alt="FasmaTwist" width="130px" height="38px" align="right"></a>
 
-Symiosis is a desktop note-taking application inspired by Notational Velocity that combines instant search with beautiful markdown rendering. It's designed for a keyboard-driven workflow with Vim-centric defaults, but you can customize shortcuts to your taste. The built-in code editor supports vim, emacs, and basic editing modes so you can comfortably edit notes in place.
+Symiosis is a keyboard-driven desktop note-taking app inspired by Notational Velocity. It combines instant search with in-place markdown rendering and includes a code editor with vim, emacs, and basic modes.
 
 ![](resources/symiosis.gif)
 
@@ -10,8 +10,8 @@ Symiosis is a desktop note-taking application inspired by Notational Velocity th
 
 **Early Release (α)**
 
-- The app is functional and ready to use, but things may change as improvements are made. Some features might not work perfectly yet.
-- Currently tested officially on macOS. Contributions / feedback for Windows & Linux support are appreciated.
+- Functional but evolving — some features may not work perfectly yet.
+- Primarily tested on macOS with initial Windows & Linux testing. Cross-platform contributions welcome.
 
 > [!WARNING]
 > Note versions are kept and care has been taken to avoid data loss, but since this is a new project, regular backups are recommended.
@@ -20,17 +20,16 @@ Symiosis is a desktop note-taking application inspired by Notational Velocity th
 
 ## Features
 
-*   **Instant Search:** Search title and contents with fuzzy matching.
-*   **Markdown Render in Place:** Notes are explored and read as beautiful rendered markdown.
-*   **Code Editor:** Seamlessly switch between viewing and editing modes.
-*   **Keyboard-Driven Workflow:** Navigate and manage notes entirely with keyboard shortcuts.
+*   **Instant Search:** Fuzzy matching across titles and contents.
+*   **Markdown Rendering:** Notes display as styled markdown with syntax-highlighted code blocks.
+*   **Code Editor:** Switch between reading and editing with vim, emacs, or basic mode.
+*   **Keyboard-Driven:** Full navigation and note management via customizable shortcuts.
 
 ---
 
 ## Usage
 
-Symiosis is designed for a keyboard-driven workflow. Defaults are Vim-centric but you can customize to taste.
-Usual keys like arrows etc. will also work.
+Defaults are Vim-centric but fully customizable. Standard keys (arrows, etc.) also work.
 
 ### Global Shortcuts
 
@@ -39,28 +38,27 @@ Usual keys like arrows etc. will also work.
 ### General Navigation
 
 *   **Type to Search:** Start typing to filter notes.
-*   **`Ctrl + J` / `Ctrl + K`:** Navigate through the search results (notes list).
-*   **`Enter`:** When a note is selected, enter edit mode for that note.
-*   **`Ctrl + U` / `Ctrl + D`:** Scroll up or down currently selected note
-*   **`Ctrl + P` / `Ctrl + N`:** Navigate search term highlights (if active) or Markdown headers in currently selected note. Other headers will collapse creating an outline for easy navigation.
-*   **`Ctrl + H` / `Ctrl + L`:** Navigate links in currently selected note.
-*   **`Ctrl + Alt + H` / `Ctrl + Alt + L`:** Navigate code blocks in currently selected note.
-*   **`Escape`:** Exit current navigation mode (links, code blocks, headers) or clear search highlights. If no navigation is active, clear current search text.
-*   **`Enter`:** When navigating links, opens the selected link in your default browser. Otherwise, enters edit mode for the selected note.
-*   **`Ctrl + Y`:** Copy currently selected markdown section or code block to clipboard.
+*   **`Ctrl + J` / `Ctrl + K`:** Navigate through search results.
+*   **`Ctrl + U` / `Ctrl + D`:** Scroll selected note up/down.
+*   **`Ctrl + P` / `Ctrl + N`:** Navigate search highlights or markdown headers. Non-targeted headers collapse to create an outline view.
+*   **`Ctrl + H` / `Ctrl + L`:** Navigate links in selected note.
+*   **`Ctrl + Alt + H` / `Ctrl + Alt + L`:** Navigate code blocks in selected note.
+*   **`Enter`:** Open selected link in default browser (when navigating links), otherwise enter edit mode.
+*   **`Escape`:** Exit navigation mode or clear search highlights. If nothing active, clears search text.
+*   **`Ctrl + Y`:** Copy current markdown section or code block to clipboard.
 
 ### Note Management
 
 *   **`Ctrl + Enter`:** Create a new note.
-*   **`Ctrl + M`:** Rename the currently selected note.
-*   **`Ctrl + O`:** Open the currently selected note in the system default editor.
-*   **`Ctrl + X`:** Delete the currently selected note (requires confirmation).
+*   **`Ctrl + M`:** Rename selected note.
+*   **`Ctrl + O`:** Open selected note in system default editor.
+*   **`Ctrl + X`:** Delete selected note (confirmation required).
 
 ### Special Panels
 
-*   **`Meta + ,` (Cmd + , on Mac):** Open settings panel.
-*   **`Ctrl + /`:** Open version explorer for the currently selected note.
-*   **`Ctrl + .`:** Open recently deleted notes dialog to restore deleted notes.
+*   **`Meta + ,` (Cmd + , on Mac):** Open settings.
+*   **`Ctrl + /`:** Open version explorer for selected note.
+*   **`Ctrl + .`:** Open recently deleted notes.
 
 ---
 
@@ -70,7 +68,7 @@ Symiosis uses a TOML configuration file located at:
 - **Linux/macOS**: `~/.config/symiosis/config.toml`
 - **Windows**: `%APPDATA%\symiosis\config.toml`
 
-On first run, a default configuration file is created automatically with sensible defaults.
+A default config is created on first run.
 
 ### Configuration Options
 
@@ -125,7 +123,7 @@ On first run, a default configuration file is created automatically with sensibl
 - `custom_ui_theme_path` - Path to custom UI theme CSS file (optional)
 - `custom_markdown_theme_path` - Path to custom markdown theme CSS file (optional)
 
-When custom theme paths are provided, they take precedence over the theme names. If a custom file fails to load, the app falls back to the specified theme name.
+Custom paths take precedence over theme names. If loading fails, the app falls back to the named theme.
 
 ```toml
 [interface]
@@ -257,37 +255,25 @@ max_search_results = 100
 
 ## Development
 
-### Using Development Mode
+### Development Mode
 
-If you're developing Symiosis and want to keep your development data separate from your personal notes, you can enable development mode:
+To keep development data separate from personal notes, create a dev config:
 
-1. **Create a development config file:**
+**Linux/macOS:**
+```bash
+mkdir -p ~/.config/symiosis-dev
+cp ~/.config/symiosis/config.toml ~/.config/symiosis-dev/config.toml
+```
 
-   **Linux/macOS:**
-   ```bash
-   mkdir -p ~/.config/symiosis-dev
-   cp ~/.config/symiosis/config.toml ~/.config/symiosis-dev/config.toml
-   ```
+**Windows:**
+```cmd
+mkdir "%APPDATA%\symiosis-dev"
+copy "%APPDATA%\symiosis\config.toml" "%APPDATA%\symiosis-dev\config.toml"
+```
 
-   **Windows:**
-   ```cmd
-   mkdir "%APPDATA%\symiosis-dev"
-   copy "%APPDATA%\symiosis\config.toml" "%APPDATA%\symiosis-dev\config.toml"
-   ```
+Update `notes_directory` in the dev config to point to a separate directory. When running `pnpm tauri dev`, Symiosis automatically uses the dev config if present. Production builds always use the regular config.
 
-2. **Update the development config** to use a separate notes directory:
-   ```toml
-   notes_directory = "/Users/username/Documents/Notes-dev"
-   ```
-
-3. **Development builds automatically detect the dev config:**
-   - When running `pnpm tauri dev`, Symiosis will automatically use the platform-appropriate dev config if it exists:
-     - **Linux/macOS**: `~/.config/symiosis-dev/config.toml`
-     - **Windows**: `%APPDATA%\symiosis-dev\config.toml`
-   - This separates your development data from your personal notes
-   - Production builds ignore the dev config and always use the regular config location
-
-4. **To disable development mode**, simply delete or rename the dev config file for your platform.
+To disable, delete the dev config file.
 
 ---
 
