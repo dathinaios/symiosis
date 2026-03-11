@@ -64,16 +64,23 @@ On first run, a default configuration file is created automatically with sensibl
 
 ### Configuration Options
 
-#### Top-Level Settings
+<details>
+<summary>Top-Level Settings</summary>
 
 - `notes_directory` - Directory where notes are stored (default: `~/Documents/Notes`)
 - `global_shortcut` - Global keyboard shortcut to toggle app visibility (default: `"Ctrl+Shift+N"`)
 
-#### General Configuration (`[general]`)
+</details>
+
+<details>
+<summary>General [general]</summary>
 
 - `scroll_amount` - Scroll amount as a fraction of viewport height (default: `0.4`, which equals 40% of the visible area)
 
-#### Interface Configuration (`[interface]`)
+</details>
+
+<details>
+<summary>Interface [interface]</summary>
 
 - `ui_theme` - Application UI theme (default: `"gruvbox-dark"`)
 - `font_family` - UI font family (default: `"Inter, sans-serif"`)
@@ -91,6 +98,7 @@ On first run, a default configuration file is created automatically with sensibl
 
 ##### Available Code Highlighting Themes
 
+
 | Gruvbox | Dark | Light |
 |---|---|---|
 | `gruvbox-dark-hard` | `atom-one-dark` | `atom-one-light` |
@@ -101,6 +109,7 @@ On first run, a default configuration file is created automatically with sensibl
 |  | `vs2015` |  |
 |  | `night-owl` |  |
 |  | `tokyo-night-dark` |  |
+
 
 ##### Custom Theme Paths *(requires restart)*
 - `custom_ui_theme_path` - Path to custom UI theme CSS file (optional)
@@ -122,7 +131,10 @@ custom_markdown_theme_path = "/Users/username/my-md-theme.css"  # Custom overrid
 - `always_on_top` - Keep window always on top (default: `false`) *(requires restart)*
 - `window_decorations` - Show window title bar and borders (default: `true`) *(requires restart)* **[Linux only - not yet implemented on macOS/Windows]**
 
-#### Editor Configuration (`[editor]`)
+</details>
+
+<details>
+<summary>Editor [editor]</summary>
 
 - `mode` - Editor mode: `"basic"`, `"vim"`, or `"emacs"` (default: `"basic"`)
 - `theme` - Editor color theme (default: `"gruvbox-dark"`)
@@ -131,9 +143,13 @@ custom_markdown_theme_path = "/Users/username/my-md-theme.css"  # Custom overrid
 - `expand_tabs` - Convert tabs to spaces (default: `true`)
 - `show_line_numbers` - Show line numbers in editor (default: `true`)
 
-#### Keyboard Shortcuts (`[shortcuts]`)
+</details>
 
-All keyboard shortcuts are configurable:
+<details>
+<summary>Keyboard Shortcuts [shortcuts]</summary>
+
+All keyboard shortcuts are configurable.
+
 - `create_note` - Create new note (default: `"Ctrl+Enter"`)
 - `rename_note` - Rename selected note (default: `"Ctrl+m"`)
 - `delete_note` - Delete selected note (default: `"Ctrl+x"`)
@@ -157,13 +173,19 @@ All keyboard shortcuts are configurable:
 - `version_explorer` - Open version explorer for selected note (default: `"Ctrl+/"`)
 - `recently_deleted` - Open recently deleted notes dialog (default: `"Ctrl+."`)
 
-#### Preferences (`[preferences]`)
+</details>
+
+<details>
+<summary>Preferences [preferences]</summary>
 
 - `max_search_results` - Maximum number of search results to display (default: `100`)
 
+</details>
+
 ### Example Configuration
 
-The app creates a minimal default configuration like this:
+<details>
+<summary>View default config.toml</summary>
 
 ```toml
 notes_directory = "/Users/username/Documents/Notes"
@@ -218,6 +240,8 @@ recently_deleted = "Ctrl+."
 [preferences]
 max_search_results = 100
 ```
+
+</details>
 
 ## Development
 
