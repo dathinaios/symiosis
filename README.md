@@ -2,6 +2,8 @@
 
 Symiosis is a keyboard-driven desktop note-taking app inspired by Notational Velocity. It combines instant search with in-place markdown rendering and includes a code editor with vim, emacs, and basic modes.
 
+**[⬇ Download the latest release](https://github.com/dathinaios/symiosis/releases/latest)** — prebuilt macOS, Windows, and Linux binaries.
+
 ![](resources/symiosis.gif)
 
 ---
