@@ -1,6 +1,8 @@
 use crate::core::{AppError, AppResult};
 use crate::logging::log;
-use crate::utilities::config_helpers::{default_global_shortcut, default_window_decorations};
+use crate::utilities::config_helpers::{
+    default_global_shortcut, default_show_in_dock, default_window_decorations,
+};
 
 pub use crate::utilities::config_helpers::{
     get_available_code_themes, get_available_editor_modes, get_available_editor_themes,
@@ -62,6 +64,8 @@ pub struct InterfaceConfig {
     pub always_on_top: bool,
     #[serde(default = "default_window_decorations")]
     pub window_decorations: bool,
+    #[serde(default = "default_show_in_dock")]
+    pub show_in_dock: bool,
     pub custom_ui_theme_path: Option<String>,
     pub custom_markdown_theme_path: Option<String>,
 }
@@ -157,6 +161,7 @@ impl Default for InterfaceConfig {
             md_render_code_theme: "gruvbox-dark-medium".to_string(),
             always_on_top: false,
             window_decorations: default_window_decorations(),
+            show_in_dock: default_show_in_dock(),
             custom_ui_theme_path: None,
             custom_markdown_theme_path: None,
         }

@@ -33,6 +33,7 @@ static DOCK_MENU_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app_state = load_config_and_initialize_state();
+    seed_dock_state_from_config(&app_state);
 
     let app = build_tauri_app_with_plugins(app_state)
         .setup(setup_app_components)
@@ -88,6 +89,17 @@ fn build_tauri_app_with_plugins(app_state: AppState) -> tauri::Builder<tauri::Wr
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(app_state)
+}
+
+/// Must run before the app is built: `setup` only fires once the event loop is
+/// ready, which is after `run_app_with_platform_config` picks the launch policy.
+#[allow(unused_variables)]
+fn seed_dock_state_from_config(app_state: &AppState) {
+    #[cfg(target_os = "macos")]
+    {
+        let config = app_state.config.read().unwrap_or_else(|e| e.into_inner());
+        DOCK_VISIBLE.store(config.interface.show_in_dock, Ordering::Relaxed);
+    }
 }
 
 fn setup_window_configuration(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -259,7 +271,11 @@ fn handle_app_build_error(e: tauri::Error) -> ! {
 
 fn run_app_with_platform_config(mut app: tauri::App) {
     #[cfg(target_os = "macos")]
-    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    app.set_activation_policy(if DOCK_VISIBLE.load(Ordering::Relaxed) {
+        tauri::ActivationPolicy::Regular
+    } else {
+        tauri::ActivationPolicy::Accessory
+    });
 
     app.run(|_app_handle, event| match event {
         tauri::RunEvent::ExitRequested { api, .. } => {

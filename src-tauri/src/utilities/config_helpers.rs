@@ -21,6 +21,10 @@ pub fn default_window_decorations() -> bool {
     true
 }
 
+pub fn default_show_in_dock() -> bool {
+    false
+}
+
 pub fn get_available_ui_themes() -> Vec<&'static str> {
     vec!["gruvbox-dark", "article", "modern-dark"]
 }

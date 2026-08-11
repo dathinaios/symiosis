@@ -14,6 +14,7 @@ fn test_default_config_values() {
     assert_eq!(config.global_shortcut, "Ctrl+Shift+N");
     assert_eq!(config.editor.mode, "basic");
     assert_eq!(config.interface.markdown_render_theme, "modern-dark");
+    assert_eq!(config.interface.show_in_dock, false);
     // notes_directory should be ~/Documents/Notes or ./notes fallback
     assert!(config.notes_directory.contains("Notes") || config.notes_directory == "./notes");
 }
@@ -442,4 +443,23 @@ max_search_results = 250
     assert_eq!(config.shortcuts.rename_note, "Ctrl+r");
     assert_eq!(config.shortcuts.refresh_cache, "F5");
     assert_eq!(config.preferences.max_search_results, 250);
+}
+
+#[test]
+fn test_show_in_dock_parsed_from_config() {
+    let enabled = load_config_from_content(
+        r#"
+[interface]
+show_in_dock = true
+"#,
+    );
+    assert_eq!(enabled.interface.show_in_dock, true);
+
+    let omitted = load_config_from_content(
+        r#"
+[interface]
+ui_theme = "gruvbox-dark"
+"#,
+    );
+    assert_eq!(omitted.interface.show_in_dock, false);
 }

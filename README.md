@@ -138,6 +138,7 @@ custom_markdown_theme_path = "/Users/username/my-md-theme.css"  # Custom overrid
 ##### Window Settings
 - `always_on_top` - Keep window always on top (default: `false`) *(requires restart)*
 - `window_decorations` - Show window title bar and borders (default: `true`) *(requires restart)* **[Linux only - not yet implemented on macOS/Windows]**
+- `show_in_dock` - Show the app in the Dock and the Cmd-Tab app switcher (default: `false`) *(requires restart)* **[macOS only]**
 
 </details>
 
@@ -212,6 +213,7 @@ markdown_render_theme = "modern-dark"
 md_render_code_theme = "gruvbox-dark-medium"
 always_on_top = false
 window_decorations = true
+show_in_dock = false
 
 [editor]
 mode = "basic"
