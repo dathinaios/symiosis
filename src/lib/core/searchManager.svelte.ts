@@ -5,6 +5,7 @@
  */
 
 import type { createNoteService } from '../services/noteService.svelte'
+import type { ProgressManager } from './progressManager.svelte'
 import type { NoteMetadata } from '../types/note'
 
 /** Minimum characters required before triggering a filtered search query */
@@ -23,15 +24,13 @@ interface SearchState {
 
 interface SearchManagerDeps {
   noteService: ReturnType<typeof createNoteService>
-  progressManager: {
-    readonly isLoading: boolean
-    start(message: string, type?: 'subtle' | 'modal'): void
-    complete(): void
-    setError(errorMessage: string): void
-  }
+  progressManager: Pick<
+    ProgressManager,
+    'isLoading' | 'start' | 'complete' | 'setError'
+  >
 }
 
-interface SearchManager {
+export interface SearchManager {
   readonly isLoading: boolean
   readonly filteredNotes: NoteMetadata[]
   searchInput: string

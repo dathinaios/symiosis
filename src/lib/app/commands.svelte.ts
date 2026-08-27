@@ -13,7 +13,16 @@
  */
 
 import { tick } from 'svelte'
-import type { NoteMetadata } from '../types/note'
+import type { ConfigManager } from '../core/configManager.svelte'
+import type { ContentLoadingManager } from '../core/contentLoadingManager.svelte'
+import type { ContentManager } from '../core/contentManager.svelte'
+import type { ContentNavigationManager } from '../core/contentNavigationManager.svelte'
+import type { DialogManager } from '../core/dialogManager.svelte'
+import type { EditorManager } from '../core/editorManager.svelte'
+import type { FocusManager } from '../core/focusManager.svelte'
+import type { RecentlyDeletedManager } from '../core/recentlyDeletedManager.svelte'
+import type { SearchManager } from '../core/searchManager.svelte'
+import type { VersionExplorerManager } from '../core/versionExplorerManager.svelte'
 
 /** Delay in ms before navigating to header after exiting edit mode */
 const HEADER_NAVIGATION_DELAY_MS = 100
@@ -31,82 +40,65 @@ export interface CommandDeps {
     openInEditor(name: string): Promise<void>
     openFolder(name: string): Promise<void>
   }
-  searchManager: {
-    readonly searchInput: string
-    readonly filteredNotes: NoteMetadata[]
-    executeSearch(query: string): Promise<NoteMetadata[]>
-    setFilteredNotes(notes: NoteMetadata[]): void
-    clearSearch(): void
-  }
-  focusManager: {
-    readonly selectedIndex: number
-    readonly noteContentElement: HTMLElement | null
-    setSelectedIndex(index: number): void
-    focusSearch(): void
-  }
-  editorManager: {
-    readonly isDirty: boolean
-    readonly editingNoteName: string | null
-    enterEditMode(noteName: string, fallbackHtml?: string): Promise<void>
-    exitEditMode(): string
-    saveNote(): Promise<{ success: boolean; error?: string }>
-    captureExitPosition(
-      onHeader?: ((headerText: string) => void) | null,
-      onCursor?: ((line: number, column: number) => void) | null
-    ): void
-    setExitHeaderText(headerText: string): void
-  }
-  contentManager: {
-    readonly noteContent: string
-    refreshAfterSave(
-      noteName: string,
-      searchInput: string
-    ): Promise<{ searchResults: NoteMetadata[]; content: string }>
-  }
-  contentNavigationManager: {
-    readonly isNavigatingLinks: boolean
-    navigateNext(): void
-    navigatePrevious(): void
-    navigateCodeNext(): void
-    navigateCodePrevious(): void
-    navigateLinkNext(): void
-    navigateLinkPrevious(): void
-    openCurrentLink(): void
-    copyCurrentSection(): Promise<boolean>
-    navigateToHeader(headerText: string): boolean
-    handleEscape():
-      | 'navigation_cleared'
-      | 'highlights_cleared'
-      | 'search_cleared'
-      | 'focus_search'
-  }
-  contentLoadingManager: {
-    loadNoteContent(note: string): Promise<void>
-    refreshCacheAndUI(): Promise<void>
-  }
-  dialogManager: {
-    readonly newNoteName: string
-    readonly newNoteNameForRename: string
-    openCreateDialog(query?: string, highlightedContent?: string): void
-    closeCreateDialog(): void
-    openRenameDialog(selectedNote?: string): void
-    closeRenameDialog(): void
-    openDeleteDialog(): void
-    closeDeleteDialog(): void
-    openUnsavedChangesDialog(): void
-  }
-  configManager: {
-    readonly general: { scroll_amount: number }
-    openPane(): Promise<void>
-    closePane(): void
-    saveConfig(): Promise<{ success: boolean; error?: string }>
-  }
-  versionExplorerManager: {
-    openVersionExplorer(noteName: string): Promise<void>
-  }
-  recentlyDeletedManager: {
-    openDialog(): Promise<void>
-  }
+  searchManager: Pick<
+    SearchManager,
+    | 'searchInput'
+    | 'filteredNotes'
+    | 'executeSearch'
+    | 'setFilteredNotes'
+    | 'clearSearch'
+  >
+  focusManager: Pick<
+    FocusManager,
+    'selectedIndex' | 'noteContentElement' | 'setSelectedIndex' | 'focusSearch'
+  >
+  editorManager: Pick<
+    EditorManager,
+    | 'isDirty'
+    | 'editingNoteName'
+    | 'enterEditMode'
+    | 'exitEditMode'
+    | 'saveNote'
+    | 'captureExitPosition'
+    | 'setExitHeaderText'
+  >
+  contentManager: Pick<ContentManager, 'noteContent' | 'refreshAfterSave'>
+  contentNavigationManager: Pick<
+    ContentNavigationManager,
+    | 'isNavigatingLinks'
+    | 'navigateNext'
+    | 'navigatePrevious'
+    | 'navigateCodeNext'
+    | 'navigateCodePrevious'
+    | 'navigateLinkNext'
+    | 'navigateLinkPrevious'
+    | 'openCurrentLink'
+    | 'copyCurrentSection'
+    | 'navigateToHeader'
+    | 'handleEscape'
+  >
+  contentLoadingManager: Pick<
+    ContentLoadingManager,
+    'loadNoteContent' | 'refreshCacheAndUI'
+  >
+  dialogManager: Pick<
+    DialogManager,
+    | 'newNoteName'
+    | 'newNoteNameForRename'
+    | 'openCreateDialog'
+    | 'closeCreateDialog'
+    | 'openRenameDialog'
+    | 'closeRenameDialog'
+    | 'openDeleteDialog'
+    | 'closeDeleteDialog'
+    | 'openUnsavedChangesDialog'
+  >
+  configManager: Pick<
+    ConfigManager,
+    'general' | 'openPane' | 'closePane' | 'saveConfig'
+  >
+  versionExplorerManager: Pick<VersionExplorerManager, 'openVersionExplorer'>
+  recentlyDeletedManager: Pick<RecentlyDeletedManager, 'openDialog'>
   /** The note currently selected in the list; derived by the coordinator. */
   getSelectedNote: () => string | null
 }

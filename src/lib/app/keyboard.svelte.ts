@@ -8,8 +8,11 @@
  * their own state, so no snapshot of app state is threaded through dispatch.
  */
 
+import type { ConfigManager } from '../core/configManager.svelte'
+import type { EditorManager } from '../core/editorManager.svelte'
+import type { FocusManager } from '../core/focusManager.svelte'
+import type { SearchManager } from '../core/searchManager.svelte'
 import type { ShortcutsConfig } from '../types/config'
-import type { NoteMetadata } from '../types/note'
 import type { Commands } from './commands.svelte'
 
 /**
@@ -28,20 +31,13 @@ export type KeyContext = 'searchInput' | 'editMode' | 'noteContent' | 'default'
 
 export interface KeyboardDeps {
   commands: Commands
-  configManager: {
-    readonly shortcuts: ShortcutsConfig
-    readonly isVisible: boolean
-  }
-  focusManager: {
-    readonly isSearchInputFocused: boolean
-    readonly isNoteContentFocused: boolean
-  }
-  editorManager: {
-    readonly isEditMode: boolean
-  }
-  searchManager: {
-    readonly filteredNotes: NoteMetadata[]
-  }
+  configManager: Pick<ConfigManager, 'shortcuts' | 'isVisible'>
+  focusManager: Pick<
+    FocusManager,
+    'isSearchInputFocused' | 'isNoteContentFocused'
+  >
+  editorManager: Pick<EditorManager, 'isEditMode'>
+  searchManager: Pick<SearchManager, 'filteredNotes'>
   /** True while any modal owns the keyboard. */
   isAnyDialogOpen(): boolean
 }

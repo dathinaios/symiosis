@@ -11,7 +11,7 @@ interface ProgressState {
   type: 'subtle' | 'modal'
 }
 
-interface ProgressManager {
+export interface ProgressManager {
   readonly isLoading: boolean
   readonly message: string
   readonly error: string | null

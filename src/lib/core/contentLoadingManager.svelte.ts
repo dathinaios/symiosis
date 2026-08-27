@@ -8,25 +8,22 @@
  * root; the abort/sequence machinery is a responsibility of its own.
  */
 
-import type { NoteMetadata } from '../types/note'
+import type { ContentManager } from './contentManager.svelte'
+import type { ContentNavigationManager } from './contentNavigationManager.svelte'
+import type { FocusManager } from './focusManager.svelte'
+import type { SearchManager } from './searchManager.svelte'
 
 export interface ContentLoadingManagerDeps {
-  contentManager: {
-    setNoteContent(content: string): void
-    scrollToFirstMatch(): void
-    refreshContent(noteName: string): Promise<string>
-  }
-  contentNavigationManager: {
-    resetNavigation(): void
-  }
-  searchManager: {
-    readonly searchInput: string
-    readonly filteredNotes: NoteMetadata[]
-    executeSearch(query: string): Promise<NoteMetadata[]>
-  }
-  focusManager: {
-    setSelectedIndex(index: number): void
-  }
+  contentManager: Pick<
+    ContentManager,
+    'setNoteContent' | 'scrollToFirstMatch' | 'refreshContent'
+  >
+  contentNavigationManager: Pick<ContentNavigationManager, 'resetNavigation'>
+  searchManager: Pick<
+    SearchManager,
+    'searchInput' | 'filteredNotes' | 'executeSearch'
+  >
+  focusManager: Pick<FocusManager, 'setSelectedIndex'>
   configService: {
     refreshCache(): Promise<void>
   }

@@ -5,6 +5,7 @@
  */
 
 import type { createNoteService } from '../services/noteService.svelte'
+import type { ContentNavigationManager } from './contentNavigationManager.svelte'
 import type { EditorView } from 'codemirror'
 import { convertHtmlToText } from '../utils/htmlParser'
 
@@ -26,9 +27,10 @@ interface SaveResult {
 
 interface EditorManagerDeps {
   noteService: ReturnType<typeof createNoteService>
-  contentNavigationManager: {
-    getCurrentHeaderText(): string
-  }
+  contentNavigationManager: Pick<
+    ContentNavigationManager,
+    'getCurrentHeaderText'
+  >
 }
 
 export interface EditorManager {

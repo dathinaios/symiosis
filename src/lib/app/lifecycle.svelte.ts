@@ -11,38 +11,30 @@
 
 import { tick } from 'svelte'
 import { listen } from '@tauri-apps/api/event'
-import type { NoteMetadata } from '../types/note'
+import type { ConfigManager } from '../core/configManager.svelte'
+import type { ContentLoadingManager } from '../core/contentLoadingManager.svelte'
+import type { FocusManager } from '../core/focusManager.svelte'
+import type { ProgressManager } from '../core/progressManager.svelte'
+import type { SearchManager } from '../core/searchManager.svelte'
 
 export interface AppLifecycleDeps {
-  configManager: {
-    initialize(): Promise<void>
-    cleanup(): void
-  }
+  configManager: Pick<ConfigManager, 'initialize' | 'cleanup'>
   configService: {
     exists(): Promise<boolean>
   }
   noteService: {
     initializeDatabase(): Promise<{ success: boolean; error?: string }>
   }
-  searchManager: {
-    executeSearch(query: string): Promise<NoteMetadata[]>
-    abort(): void
-  }
-  focusManager: {
-    focusSearch(): void
-    setSelectedIndex(index: number): void
-  }
-  progressManager: {
-    start(message: string): void
-    updateProgress(message: string): void
-    complete(): void
-    setError(errorMessage: string): void
-  }
-  contentLoadingManager: {
-    loadNoteContent(note: string): Promise<void>
-    refreshUI(): Promise<void>
-    abort(): void
-  }
+  searchManager: Pick<SearchManager, 'executeSearch' | 'abort'>
+  focusManager: Pick<FocusManager, 'focusSearch' | 'setSelectedIndex'>
+  progressManager: Pick<
+    ProgressManager,
+    'start' | 'updateProgress' | 'complete' | 'setError'
+  >
+  contentLoadingManager: Pick<
+    ContentLoadingManager,
+    'loadNoteContent' | 'refreshUI' | 'abort'
+  >
   openSettingsPane(): Promise<void>
   /** Called when the backend reports this is the user's first run. */
   onFirstRunDetected(): void

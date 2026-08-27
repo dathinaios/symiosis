@@ -5,6 +5,9 @@
  */
 
 import { getHighlightedContent } from '../utils/contentHighlighting.svelte'
+import type { ContentNavigationManager } from './contentNavigationManager.svelte'
+import type { FocusManager } from './focusManager.svelte'
+import type { SearchManager } from './searchManager.svelte'
 import type { NoteMetadata } from '../types/note'
 
 /** Delay in ms before starting highlight navigation to allow DOM to settle */
@@ -14,18 +17,12 @@ export interface ContentManagerDeps {
   noteService: {
     getContent: (noteName: string) => Promise<string>
   }
-  searchManager: {
-    readonly query: string
-    executeSearch(query: string): Promise<NoteMetadata[]>
-  }
-  focusManager: {
-    readonly noteContentElement: HTMLElement | null
-  }
-  contentNavigationManager: {
-    readonly hideHighlights: boolean
-    clearHighlights(): void
-    startHighlightNavigation(): void
-  }
+  searchManager: Pick<SearchManager, 'query' | 'executeSearch'>
+  focusManager: Pick<FocusManager, 'noteContentElement'>
+  contentNavigationManager: Pick<
+    ContentNavigationManager,
+    'hideHighlights' | 'clearHighlights' | 'startHighlightNavigation'
+  >
 }
 
 interface ContentState {
