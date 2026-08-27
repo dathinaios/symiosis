@@ -3,6 +3,7 @@ import { vi } from 'vitest'
 export const mockInvoke = vi.fn()
 
 export const mockSearchManager = {
+  setSearchCompleteCallback: vi.fn(),
   executeSearch: vi.fn().mockResolvedValue([]),
   setSearchInput: vi.fn(),
   setFilteredNotes: vi.fn(),

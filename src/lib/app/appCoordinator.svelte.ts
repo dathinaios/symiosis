@@ -9,8 +9,6 @@ const HEADER_NAVIGATION_DELAY_MS = 100
 /** Delay in ms before showing hints after settings close on first run */
 const FIRST_RUN_HINTS_DELAY_MS = 300
 
-import { tick } from 'svelte'
-import { listen } from '@tauri-apps/api/event'
 import { createDialogManager } from '../core/dialogManager.svelte'
 import { createContentManager } from '../core/contentManager.svelte'
 import { createConfigManager as createConfigManager } from '../core/configManager.svelte'
@@ -30,6 +28,7 @@ import { createSearchActions } from './actions/search.svelte'
 import { createSettingsActions } from './actions/settings.svelte'
 import { createKeyboardActions } from './actions/keyboard.svelte'
 import { setupAppEffects } from './effects/app.svelte'
+import { createAppLifecycle } from './lifecycle.svelte'
 import type { NoteMetadata } from '../types/note'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -248,131 +247,27 @@ export function createAppCoordinator(
     focusManager.setSelectedIndex(0)
   }
 
-  function setupSearchCompleteCallback(): void {
-    searchManager.setSearchCompleteCallback(async (notes: NoteMetadata[]) => {
-      if (notes.length > 0) {
-        focusManager.setSelectedIndex(0)
-        await contentLoadingManager.loadNoteContent(notes[0].filename)
-      }
-    })
-  }
+  // Cross-manager wiring: a completed search selects and loads its first hit.
+  searchManager.setSearchCompleteCallback(async (notes: NoteMetadata[]) => {
+    if (notes.length > 0) {
+      focusManager.setSelectedIndex(0)
+      await contentLoadingManager.loadNoteContent(notes[0].filename)
+    }
+  })
 
-  async function setupEventListeners(): Promise<{
-    unlisten: () => void
-    unlistenCacheRefresh: () => void
-    unlistenFirstRun: () => void
-    unlistenDbLoadingStart: () => void
-    unlistenDbLoadingProgress: () => void
-    unlistenDbLoadingComplete: () => void
-    unlistenDbLoadingError: () => void
-  }> {
-    const unlisten = await listen('open-preferences', async () => {
-      await settingsActions.openSettingsPane()
-    })
-
-    const unlistenCacheRefresh = await listen('cache-refreshed', async () => {
-      await contentLoadingManager.refreshUI()
-    })
-
-    const unlistenFirstRun = await listen('first-run-detected', () => {
+  const appLifecycle = createAppLifecycle({
+    configManager,
+    configService,
+    noteService,
+    searchManager,
+    focusManager,
+    progressManager,
+    contentLoadingManager,
+    openSettingsPane: () => settingsActions.openSettingsPane(),
+    onFirstRunDetected: () => {
       isFirstRun = true
-    })
-
-    const unlistenDbLoadingStart = await listen<string>(
-      'db-loading-start',
-      (event) => {
-        progressManager.start(event.payload)
-      }
-    )
-
-    const unlistenDbLoadingProgress = await listen<string>(
-      'db-loading-progress',
-      (event) => {
-        progressManager.updateProgress(event.payload)
-      }
-    )
-
-    const unlistenDbLoadingComplete = await listen(
-      'db-loading-complete',
-      () => {
-        progressManager.complete()
-      }
-    )
-
-    const unlistenDbLoadingError = await listen<string>(
-      'db-loading-error',
-      (event) => {
-        progressManager.setError(event.payload)
-      }
-    )
-
-    return {
-      unlisten,
-      unlistenCacheRefresh,
-      unlistenFirstRun,
-      unlistenDbLoadingStart,
-      unlistenDbLoadingProgress,
-      unlistenDbLoadingComplete,
-      unlistenDbLoadingError,
-    }
-  }
-
-  async function initializeNotesAndUI(): Promise<void> {
-    const { notification } = await import('../utils/notification')
-
-    let configExists: boolean
-    try {
-      configExists = await configService.exists()
-    } catch (e) {
-      console.error('Failed to check config existence:', e)
-      await notification.error(
-        'Failed to load configuration. Please restart the app.'
-      )
-      return
-    }
-
-    if (!configExists) {
-      await settingsActions.openSettingsPane()
-    } else {
-      const result = await noteService.initializeDatabase()
-      if (!result.success) {
-        console.error('Failed to initialize notes:', result.error)
-        await notification.error(
-          'Failed to initialize notes database. Some notes may be unavailable.'
-        )
-      }
-
-      focusManager.focusSearch()
-      const notes = await searchManager.executeSearch('')
-      if (notes.length > 0) {
-        focusManager.setSelectedIndex(0)
-        await contentLoadingManager.loadNoteContent(notes[0].filename)
-      }
-    }
-  }
-
-  function createCleanupFunction(listeners: {
-    unlisten: () => void
-    unlistenCacheRefresh: () => void
-    unlistenFirstRun: () => void
-    unlistenDbLoadingStart: () => void
-    unlistenDbLoadingProgress: () => void
-    unlistenDbLoadingComplete: () => void
-    unlistenDbLoadingError: () => void
-  }): () => void {
-    return () => {
-      searchManager.abort()
-      contentLoadingManager.abort()
-      listeners.unlisten()
-      listeners.unlistenCacheRefresh()
-      listeners.unlistenFirstRun()
-      listeners.unlistenDbLoadingStart()
-      listeners.unlistenDbLoadingProgress()
-      listeners.unlistenDbLoadingComplete()
-      listeners.unlistenDbLoadingError()
-      configManager.cleanup()
-    }
-  }
+    },
+  })
 
   async function saveConfigAndRefresh(): Promise<{
     success: boolean
@@ -517,17 +412,8 @@ export function createAppCoordinator(
       }
     },
 
-    async initialize(): Promise<() => void> {
-      await tick()
-      await configManager.initialize()
-
-      setupSearchCompleteCallback()
-      const listeners = await setupEventListeners()
-      await initializeNotesAndUI()
-
-      // Reactive effects are registered by the caller during component
-      // initialisation; registering them here would throw `effect_orphan`.
-      return createCleanupFunction(listeners)
-    },
+    // Reactive effects are registered by the caller during component
+    // initialisation; registering them here would throw `effect_orphan`.
+    initialize: () => appLifecycle.start(),
   }
 }

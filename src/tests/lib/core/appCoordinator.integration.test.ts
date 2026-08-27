@@ -15,6 +15,7 @@ vi.mock('@tauri-apps/api/event', () => ({
 
 // Mock all managers and services
 const mockSearchManager = {
+  setSearchCompleteCallback: vi.fn(),
   executeSearch: vi.fn(),
   setSearchInput: vi.fn(),
   setFilteredNotes: vi.fn(),

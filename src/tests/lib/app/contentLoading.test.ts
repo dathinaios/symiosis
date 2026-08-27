@@ -15,6 +15,7 @@ const mockNoteService = {
 }
 
 const mockSearchManager = {
+  setSearchCompleteCallback: vi.fn(),
   searchInput: '',
   filteredNotes: [] as NoteMetadata[],
   isLoading: false,
