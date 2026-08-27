@@ -1,0 +1,7 @@
+# Pinned so `cargo clippy -D warnings` means the same thing locally and in CI.
+# Floating on stable made new lints land as CI failures on code that had not
+# changed, while the same command passed on the maintainer's machine.
+# Bump deliberately, and fix whatever the newer clippy finds in that commit.
+[toolchain]
+channel = "1.93.0"
+components = ["rustfmt", "clippy"]

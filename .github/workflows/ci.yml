@@ -2,8 +2,9 @@ name: 'ci'
 
 on:
   push:
-    branches: ['**']
+    branches: ['master']
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -62,9 +63,11 @@ jobs:
             librsvg2-dev \
             patchelf
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust
+        # Version comes from rust-toolchain.toml so CI and local agree.
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: '1.93.0'
           components: rustfmt, clippy
 
       - name: Rust cache

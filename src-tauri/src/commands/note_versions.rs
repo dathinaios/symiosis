@@ -107,7 +107,7 @@ pub fn get_note_versions(
         }
 
         // Sort by timestamp (newest first)
-        versions.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        versions.sort_by_key(|v| std::cmp::Reverse(v.timestamp));
 
         Ok(versions)
     }();
@@ -221,7 +221,7 @@ pub fn get_deleted_files(
         }
 
         // Sort by timestamp (newest first)
-        deleted_files.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        deleted_files.sort_by_key(|f| std::cmp::Reverse(f.timestamp));
 
         Ok(deleted_files)
     }();

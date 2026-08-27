@@ -129,7 +129,7 @@ fn scan_filesystem_for_notes(notes_dir: &Path) -> rusqlite::Result<Vec<(String, 
         }
     }
 
-    filesystem_files.sort_by(|a, b| b.2.cmp(&a.2));
+    filesystem_files.sort_by_key(|f| std::cmp::Reverse(f.2));
     Ok(filesystem_files)
 }
 

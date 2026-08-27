@@ -149,16 +149,16 @@ fn spawn_watcher_event_loop(
 
         for event in rx {
             match event.kind {
-                EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
-                    if involves_note_files(&event) {
-                        handle_file_system_event(
-                            &event,
-                            &app_state_clone,
-                            &debounced_watcher_clone,
-                            &app_handle_clone,
-                            &canonical_notes_dir_for_processing,
-                        );
-                    }
+                EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+                    if involves_note_files(&event) =>
+                {
+                    handle_file_system_event(
+                        &event,
+                        &app_state_clone,
+                        &debounced_watcher_clone,
+                        &app_handle_clone,
+                        &canonical_notes_dir_for_processing,
+                    );
                 }
                 _ => {}
             }
