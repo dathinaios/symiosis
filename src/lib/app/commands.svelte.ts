@@ -206,6 +206,20 @@ export function createCommands(deps: CommandDeps): Commands {
     await refreshSearchAfterSave()
   }
 
+  // Smooth scrolling animates for ~300ms, and a held key issues repeats faster
+  // than that: each one restarts the animation from where the last had reached,
+  // so holding the key scrolls no faster than tapping it. Repeats scroll
+  // instantly; a discrete press keeps the animation.
+  const REPEAT_WINDOW_MS = 150
+  let lastScrollAt = 0
+
+  function scrollBehavior(): 'auto' | 'smooth' {
+    const now = Date.now()
+    const repeating = now - lastScrollAt < REPEAT_WINDOW_MS
+    lastScrollAt = now
+    return repeating ? 'auto' : 'smooth'
+  }
+
   return {
     loadNoteContent: (note) => deps.contentLoadingManager.loadNoteContent(note),
 
@@ -251,7 +265,7 @@ export function createCommands(deps: CommandDeps): Commands {
       const element = deps.focusManager.noteContentElement
       element?.scrollBy({
         top: -(element.clientHeight * deps.configManager.general.scroll_amount),
-        behavior: 'smooth',
+        behavior: scrollBehavior(),
       })
     },
 
@@ -259,7 +273,7 @@ export function createCommands(deps: CommandDeps): Commands {
       const element = deps.focusManager.noteContentElement
       element?.scrollBy({
         top: element.clientHeight * deps.configManager.general.scroll_amount,
-        behavior: 'smooth',
+        behavior: scrollBehavior(),
       })
     },
 

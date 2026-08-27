@@ -356,6 +356,34 @@ describe('commands', () => {
         commands.scrollDownBy()
       }).not.toThrow()
     })
+
+    it('scrolls instantly while the key repeats', () => {
+      const scrollBy = vi.fn()
+      const { commands } = createFixture({
+        noteContentElement: elementWith(scrollBy),
+      })
+      const now = vi.spyOn(Date, 'now')
+
+      now.mockReturnValue(1000)
+      commands.scrollDownBy()
+
+      // A held key repeats faster than the ~300ms animation, and each smooth
+      // call restarts it from where the last had reached — so holding the key
+      // scrolls no faster than tapping it.
+      now.mockReturnValue(1050)
+      commands.scrollDownBy()
+
+      expect(scrollBy).toHaveBeenLastCalledWith({ top: 250, behavior: 'auto' })
+
+      now.mockReturnValue(5000)
+      commands.scrollDownBy()
+
+      expect(scrollBy).toHaveBeenLastCalledWith({
+        top: 250,
+        behavior: 'smooth',
+      })
+      now.mockRestore()
+    })
   })
 
   describe('createNote', () => {
