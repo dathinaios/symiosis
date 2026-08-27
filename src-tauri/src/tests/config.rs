@@ -6,8 +6,10 @@
 use crate::config::{
     load_config, load_config_from_content, parse_shortcut, AppConfig, ShortcutsConfig,
 };
+use crate::tests::test_utils::TestConfigOverride;
 use crate::utilities::paths::{get_config_path, get_default_notes_dir};
 use crate::utilities::validation::validate_shortcuts_config;
+use serial_test::serial;
 
 #[test]
 fn test_default_config_values() {
@@ -639,4 +641,26 @@ fn test_duplicate_shortcuts_are_rejected() {
 
     assert!(message.contains("navigate_code_previous"), "{}", message);
     assert!(message.contains("navigate_link_previous"), "{}", message);
+}
+
+#[test]
+#[serial]
+fn test_save_rejects_an_invalid_theme_instead_of_correcting_it() {
+    let _test_config = TestConfigOverride::new().expect("Failed to setup test config");
+
+    let content = r#"
+notes_directory = "/tmp/symiosis-test-notes"
+
+[interface]
+ui_theme = "not-a-real-theme"
+"#;
+
+    // Validation used to run on the sanitised copy, where the bad theme had
+    // already been replaced by its default — so it always passed, and the
+    // invalid value was written to disk anyway.
+    let err = crate::commands::config::save_config_content(content)
+        .expect_err("an unknown ui_theme must be refused");
+
+    assert!(err.contains("not-a-real-theme"), "{}", err);
+    assert!(err.contains("gruvbox-dark"), "{}", err);
 }

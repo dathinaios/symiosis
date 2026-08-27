@@ -3,8 +3,8 @@ use tauri::{AppHandle, Manager};
 use crate::logging::log;
 
 use crate::config::{
-    get_available_markdown_themes, get_available_ui_themes, load_config_from_content, AppConfig,
-    EditorConfig, GeneralConfig, InterfaceConfig, PreferencesConfig, ShortcutsConfig,
+    get_available_markdown_themes, get_available_ui_themes, AppConfig, EditorConfig, GeneralConfig,
+    InterfaceConfig, PreferencesConfig, ShortcutsConfig,
 };
 use crate::core::{AppError, AppResult};
 use crate::utilities::paths::get_config_path;
@@ -32,9 +32,12 @@ pub fn config_exists(app_state: tauri::State<crate::core::state::AppState>) -> b
 pub fn save_config_content(content: &str) -> Result<(), String> {
     let config_path = get_config_path();
 
-    toml::from_str::<AppConfig>(content).map_err(|e| format!("TOML syntax error: {}", e))?;
-
-    let config = load_config_from_content(content);
+    // Validate what was actually written, not the repaired copy.
+    // `load_config_from_content` runs `sanitize_config`, which silently swaps an
+    // invalid value for its default — so validating its output could never fail
+    // for any field sanitisation repairs, and the bad value still reached disk.
+    let config =
+        toml::from_str::<AppConfig>(content).map_err(|e| format!("TOML syntax error: {}", e))?;
 
     validate_config(&config).map_err(|e| format!("Configuration validation failed: {}", e))?;
 
