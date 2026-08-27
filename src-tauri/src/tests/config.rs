@@ -3,8 +3,11 @@
 //! Tests config loading, parsing, and validation functionality.
 //! These tests access internal/private functions and test the actual production behavior.
 
-use crate::config::{load_config, load_config_from_content, parse_shortcut, AppConfig};
+use crate::config::{
+    load_config, load_config_from_content, parse_shortcut, AppConfig, ShortcutsConfig,
+};
 use crate::utilities::paths::{get_config_path, get_default_notes_dir};
+use crate::utilities::validation::validate_shortcuts_config;
 
 #[test]
 fn test_default_config_values() {
@@ -289,6 +292,56 @@ delete_note = ""
     assert_eq!(config.global_shortcut, "Ctrl+Shift+N"); // default
     assert_eq!(config.shortcuts.rename_note, "Ctrl+m"); // default
     assert_eq!(config.shortcuts.delete_note, "Ctrl+x"); // default
+}
+
+#[test]
+fn test_every_shortcut_is_sanitised() {
+    // The field list is driven off `entries()`, so a shortcut added later is
+    // covered here automatically. This is the invariant `shortcuts_config!`
+    // exists to hold: the sanitisation list used to be written out by hand, and
+    // a field missing from it was never repaired — silently, and for good.
+    let defaults = ShortcutsConfig::default();
+
+    let mut content = String::from("[shortcuts]\n");
+    for (field, _) in defaults.entries() {
+        content.push_str(&format!("{} = \"++invalid++\"\n", field));
+    }
+
+    let config = load_config_from_content(&content);
+
+    for ((field, binding), (_, default)) in config.shortcuts.entries().zip(defaults.entries()) {
+        assert_eq!(
+            binding, default,
+            "shortcut '{}' was left at its invalid value",
+            field
+        );
+    }
+}
+
+#[test]
+fn test_every_shortcut_is_validated() {
+    // Same invariant on the validation side: one bad field must fail the whole
+    // config, whichever field it is.
+    let field_names: Vec<&'static str> = ShortcutsConfig::default()
+        .entries()
+        .map(|(field, _)| field)
+        .collect();
+
+    for field in field_names {
+        let defaults = ShortcutsConfig::default();
+        let mut shortcuts = ShortcutsConfig::default();
+        for (name, binding, _) in shortcuts.entries_with_defaults(&defaults) {
+            if name == field {
+                *binding = "++invalid++".to_string();
+            }
+        }
+
+        assert!(
+            validate_shortcuts_config(&shortcuts).is_err(),
+            "an invalid '{}' passed validation",
+            field
+        );
+    }
 }
 
 #[test]

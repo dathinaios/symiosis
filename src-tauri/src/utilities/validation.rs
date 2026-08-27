@@ -65,6 +65,32 @@ pub fn validate_font_size(size: u16, context: &str) -> AppResult<()> {
     Ok(())
 }
 
+/// Shared with `sanitize_editor_config`, so the accepted range is stated once.
+pub fn validate_tab_size(tab_size: u16) -> AppResult<()> {
+    if tab_size == 0 || tab_size > 16 {
+        return Err(AppError::ConfigLoad(
+            "Tab size must be between 1 and 16".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Shared with `sanitize_preferences_config`, so the accepted range is stated
+/// once.
+pub fn validate_max_search_results(max_search_results: usize) -> AppResult<()> {
+    if max_search_results == 0 {
+        return Err(AppError::ConfigLoad(
+            "Max search results must be greater than 0".to_string(),
+        ));
+    }
+    if max_search_results > 10000 {
+        return Err(AppError::ConfigLoad(
+            "Max search results too large (max: 10000)".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 pub fn validate_shortcuts_config(shortcuts: &ShortcutsConfig) -> AppResult<()> {
     validate_basic_shortcut_format(&shortcuts.create_note)?;
     validate_basic_shortcut_format(&shortcuts.rename_note)?;
@@ -111,27 +137,13 @@ pub fn validate_editor_config(editor: &EditorConfig) -> AppResult<()> {
         )));
     }
 
-    if editor.tab_size == 0 || editor.tab_size > 16 {
-        return Err(AppError::ConfigLoad(
-            "Tab size must be between 1 and 16".to_string(),
-        ));
-    }
+    validate_tab_size(editor.tab_size)?;
 
     Ok(())
 }
 
 pub fn validate_preferences_config(preferences: &PreferencesConfig) -> AppResult<()> {
-    if preferences.max_search_results == 0 {
-        return Err(AppError::ConfigLoad(
-            "Max search results must be greater than 0".to_string(),
-        ));
-    }
-    if preferences.max_search_results > 10000 {
-        return Err(AppError::ConfigLoad(
-            "Max search results too large (max: 10000)".to_string(),
-        ));
-    }
-    Ok(())
+    validate_max_search_results(preferences.max_search_results)
 }
 
 pub fn validate_shortcut_format(shortcut: &str) -> AppResult<()> {

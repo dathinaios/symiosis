@@ -70,31 +70,72 @@ pub struct InterfaceConfig {
     pub custom_markdown_theme_path: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(default)]
-pub struct ShortcutsConfig {
-    pub create_note: String,
-    pub rename_note: String,
-    pub delete_note: String,
-    pub edit_note: String,
-    pub save_and_exit: String,
-    pub open_external: String,
-    pub open_folder: String,
-    pub refresh_cache: String,
-    pub scroll_up: String,
-    pub scroll_down: String,
-    pub up: String,
-    pub down: String,
-    pub navigate_previous: String,
-    pub navigate_next: String,
-    pub navigate_code_previous: String,
-    pub navigate_code_next: String,
-    pub navigate_link_previous: String,
-    pub navigate_link_next: String,
-    pub copy_current_section: String,
-    pub open_settings: String,
-    pub version_explorer: String,
-    pub recently_deleted: String,
+/// Declares the shortcut fields once, and derives everything that has to stay
+/// in step with them: the struct, its defaults, and the iteration the
+/// validation and sanitisation passes walk. Adding a shortcut here is the only
+/// backend edit needed — the same list used to be maintained by hand in four
+/// places, where a missed entry silently skipped that shortcut's checks.
+macro_rules! shortcuts_config {
+    ($($field:ident = $default:literal),+ $(,)?) => {
+        #[derive(Debug, Serialize, Deserialize, Clone)]
+        #[serde(default)]
+        pub struct ShortcutsConfig {
+            $(pub $field: String,)+
+        }
+
+        impl Default for ShortcutsConfig {
+            fn default() -> Self {
+                Self {
+                    $($field: $default.to_string(),)+
+                }
+            }
+        }
+
+        impl ShortcutsConfig {
+            /// Every shortcut as (field name, binding), in declaration order.
+            pub fn entries(&self) -> impl Iterator<Item = (&'static str, &str)> {
+                [$((stringify!($field), self.$field.as_str()),)+].into_iter()
+            }
+
+            /// Every shortcut as (field name, binding, default), for repair.
+            pub fn entries_with_defaults<'a>(
+                &'a mut self,
+                defaults: &'a ShortcutsConfig,
+            ) -> impl Iterator<Item = (&'static str, &'a mut String, &'a str)> {
+                [$((
+                    stringify!($field),
+                    &mut self.$field,
+                    defaults.$field.as_str(),
+                ),)+]
+                .into_iter()
+            }
+        }
+    };
+}
+
+shortcuts_config! {
+    create_note = "Ctrl+Enter",
+    rename_note = "Ctrl+m",
+    delete_note = "Ctrl+x",
+    edit_note = "Enter",
+    save_and_exit = "Ctrl+s",
+    open_external = "Ctrl+o",
+    open_folder = "Ctrl+f",
+    refresh_cache = "Ctrl+r",
+    scroll_up = "Ctrl+u",
+    scroll_down = "Ctrl+d",
+    up = "Ctrl+k",
+    down = "Ctrl+j",
+    navigate_previous = "Ctrl+p",
+    navigate_next = "Ctrl+n",
+    navigate_code_previous = "Ctrl+Alt+h",
+    navigate_code_next = "Ctrl+Alt+l",
+    navigate_link_previous = "Ctrl+h",
+    navigate_link_next = "Ctrl+l",
+    copy_current_section = "Ctrl+y",
+    open_settings = "Meta+,",
+    version_explorer = "Ctrl+/",
+    recently_deleted = "Ctrl+.",
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -164,35 +205,6 @@ impl Default for InterfaceConfig {
             show_in_dock: default_show_in_dock(),
             custom_ui_theme_path: None,
             custom_markdown_theme_path: None,
-        }
-    }
-}
-
-impl Default for ShortcutsConfig {
-    fn default() -> Self {
-        Self {
-            create_note: "Ctrl+Enter".to_string(),
-            rename_note: "Ctrl+m".to_string(),
-            delete_note: "Ctrl+x".to_string(),
-            edit_note: "Enter".to_string(),
-            save_and_exit: "Ctrl+s".to_string(),
-            open_external: "Ctrl+o".to_string(),
-            open_folder: "Ctrl+f".to_string(),
-            refresh_cache: "Ctrl+r".to_string(),
-            scroll_up: "Ctrl+u".to_string(),
-            scroll_down: "Ctrl+d".to_string(),
-            up: "Ctrl+k".to_string(),
-            down: "Ctrl+j".to_string(),
-            navigate_previous: "Ctrl+p".to_string(),
-            navigate_next: "Ctrl+n".to_string(),
-            navigate_code_previous: "Ctrl+Alt+h".to_string(),
-            navigate_code_next: "Ctrl+Alt+l".to_string(),
-            navigate_link_previous: "Ctrl+h".to_string(),
-            navigate_link_next: "Ctrl+l".to_string(),
-            copy_current_section: "Ctrl+y".to_string(),
-            open_settings: "Meta+,".to_string(),
-            version_explorer: "Ctrl+/".to_string(),
-            recently_deleted: "Ctrl+.".to_string(),
         }
     }
 }

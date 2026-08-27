@@ -1,7 +1,7 @@
 use crate::logging::log;
 use crate::utilities::validation::{
-    validate_basic_shortcut_format, validate_font_size, validate_notes_directory,
-    validate_shortcut_format,
+    validate_basic_shortcut_format, validate_font_size, validate_max_search_results,
+    validate_notes_directory, validate_shortcut_format, validate_tab_size,
 };
 use std::path::PathBuf;
 use tauri_plugin_global_shortcut::Shortcut;
@@ -224,7 +224,7 @@ fn sanitize_editor_config(config: &mut EditorConfig, defaults: &EditorConfig) {
         config.theme = defaults.theme.clone();
     }
 
-    if config.tab_size == 0 || config.tab_size > 16 {
+    if validate_tab_size(config.tab_size).is_err() {
         log(
             "CONFIG_VALIDATION",
             &format!(
@@ -281,7 +281,7 @@ fn sanitize_shortcuts_config(config: &mut ShortcutsConfig, defaults: &ShortcutsC
 }
 
 fn sanitize_preferences_config(config: &mut PreferencesConfig, defaults: &PreferencesConfig) {
-    if config.max_search_results == 0 || config.max_search_results > 10000 {
+    if validate_max_search_results(config.max_search_results).is_err() {
         log(
             "CONFIG_VALIDATION",
             &format!(
