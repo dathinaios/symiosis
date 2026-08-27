@@ -54,14 +54,14 @@ Manager dependencies are declared as `Pick<SearchManager, 'searchInput' | 'execu
 
 Four files, each with one job:
 
-| File | Owns |
-| ---- | ---- |
-| `appCoordinator.svelte.ts` | Composition root. Builds the managers, derives `selectedNote` (the one value spanning two managers), wires the rest together. |
-| `commands.svelte.ts` | Every user-triggerable operation, as one surface. Built once with its dependencies; commands read current state from the managers rather than being handed a snapshot. |
-| `keyboard.svelte.ts` | Four per-context keymaps (search input / edit mode / note content / list) resolving a key to a command. Nothing else. |
-| `lifecycle.svelte.ts` | Startup and teardown: config init, the seven Tauri subscriptions, first load, and unwinding all of it. |
+| File                       | Owns                                                                                                                                                                   |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `appCoordinator.svelte.ts` | Composition root. Builds the managers, derives `selectedNote` (the one value spanning two managers), wires the rest together.                                          |
+| `commands.svelte.ts`       | Every user-triggerable operation, as one surface. Built once with its dependencies; commands read current state from the managers rather than being handed a snapshot. |
+| `keyboard.svelte.ts`       | Three per-context keymaps (search input / edit mode / list) resolving a key to a command. Nothing else.                                                                |
+| `lifecycle.svelte.ts`      | Startup and teardown: config init, the seven Tauri subscriptions, first load, and unwinding all of it.                                                                 |
 
-`prompt*` commands open a dialog; the bare verb performs the operation — `promptDeleteNote` opens the confirmation, `deleteNote` is what the confirmation calls. Reactive effects are deliberately *not* registered in `lifecycle`: `$effect` throws `effect_orphan` outside component initialisation, so `+page.svelte` registers them via `setupReactiveEffects()`.
+`prompt*` commands open a dialog; the bare verb performs the operation — `promptDeleteNote` opens the confirmation, `deleteNote` is what the confirmation calls. Reactive effects are deliberately _not_ registered in `lifecycle`: `$effect` throws `effect_orphan` outside component initialisation, so `+page.svelte` registers them via `setupReactiveEffects()`.
 
 ### Storage layout
 
@@ -81,7 +81,9 @@ $DATA_DIR/symiosis/
 
 **Save.** `save_note_with_content_check` re-reads the file and refuses if it no longer matches what the editor started from (writing a `save_failure` backup of the unsaved text first). Then `safe_write_note` takes a rollback backup, writes to a temp file, renames it into place, and verifies the bytes landed. Finally the row is upserted with the file's real mtime.
 
-**Search.** FTS5 supplies up to 500 prefix-matched candidates, which are re-scored in Rust: exact title, prefix title, word-prefix, then `nucleo` fuzzy, with content matches ranked below all title matches. An empty query lists notes by recency.
+**Search.** FTS5 supplies prefix-matched candidates — `max(500, max_search_results)` of them, so the pool is never smaller than the number of results asked for — which are then re-scored in Rust. Every term is quoted before it reaches `MATCH`, because FTS5 reads `-` as an operator and an unquoted hyphenated term fails the whole query.
+
+Ranking is by match type first, so any title match outranks every content match: exact title, prefix title, word-prefix, then `nucleo` fuzzy, then content. Titles carry a larger boost than filenames. Matching is case-insensitive throughout, and word-prefix matching splits on `_-.,+=;:` so `plan` matches `roadmap-planning`. Ties break by score, then by recency, then alphabetically by title. An empty query lists notes by recency.
 
 **External change.** `notify` events are debounced 500ms per path, filtered to `.md`/`.txt`/`.markdown`, and checked against `SelfWriteRegistry`. Anything genuinely external gets an `external_change` backup (if the content differs from the index) and an index update, then the frontend is told to refresh.
 
@@ -185,12 +187,12 @@ _Fixed:_ `ci.yml` runs all of them on push and pull request, with clippy gating 
 
 A second pass followed the audit. The finding was that the architecture is sound — the layering, the central coordinator and the factory/DI manager pattern are all correct and were kept — but that four concerns each had **two coexisting mechanisms**, which is what made changes feel like they threaded through everything.
 
-| Concern | Was | Now |
-| ------- | --- | --- |
-| Dispatch | An action registry in `keyboard.svelte.ts` *and* an `actions` getter on the coordinator | One `commands.svelte.ts` |
-| Getting the selection into an operation | A per-call `ActionContext` snapshot *and* currying `selectedNote` into the note actions | One injected `getSelectedNote()` |
-| Reading a value | `coordinator.query` / `coordinator.state.query` / `searchManager.searchInput` / keyboard's `AppState.query` | `searchManager` for search values, the coordinator for `selectedNote` |
-| Declaring a backend config field | The struct, its `Default`, the sanitiser's list, the validator's list | One `shortcuts_config!` invocation |
+| Concern                                 | Was                                                                                                         | Now                                                                   |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Dispatch                                | An action registry in `keyboard.svelte.ts` _and_ an `actions` getter on the coordinator                     | One `commands.svelte.ts`                                              |
+| Getting the selection into an operation | A per-call `ActionContext` snapshot _and_ currying `selectedNote` into the note actions                     | One injected `getSelectedNote()`                                      |
+| Reading a value                         | `coordinator.query` / `coordinator.state.query` / `searchManager.searchInput` / keyboard's `AppState.query` | `searchManager` for search values, the coordinator for `selectedNote` |
+| Declaring a backend config field        | The struct, its `Default`, the sanitiser's list, the validator's list                                       | One `shortcuts_config!` invocation                                    |
 
 The registry also dispatched at three different altitudes from one table — an orchestration function, a manager method, and a service call that bypassed every layer — and `deleteNote` meant "open the confirmation dialog" in one place and "delete the note" in another. Both are gone.
 
@@ -210,7 +212,7 @@ These are real but were out of scope. Roughly in order of how much they will cos
 
 **Structured errors across IPC.** All 28 commands now return `Result<_, String>`, which is consistent but lossy — the frontend cannot distinguish a missing file from a permission error without matching on message text.
 
-**Search has a hidden ceiling.** FTS5 candidates are capped at a hardcoded `LIMIT 500` before re-ranking, while `max_search_results` is configurable up to 10000 — so an exact title match ranked 501st by BM25 is dropped. Content scoring also lowercases each candidate's full body on every keystroke.
+**Content scoring lowercases each candidate's full body on every keystroke.** The candidate cap itself is no longer the problem — it now follows `max_search_results` — but the per-keystroke allocation over every candidate body remains.
 
 **No `~` expansion in `notes_directory`.** A hand-written `notes_directory = "~/Notes"` produces a literal `./~/Notes` directory; validation only logs a warning.
 
