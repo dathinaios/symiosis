@@ -1,0 +1,10 @@
+# Pinned so `cargo clippy -D warnings` means the same thing here and in CI,
+# which pins the same version explicitly. Bump deliberately, fixing whatever the
+# newer clippy finds in that commit.
+#
+# This also resolves to the native host, so builds are arm64 rather than x86_64
+# under Rosetta. That needs the aarch64 rustflags in .cargo/config.toml to leave
+# compact unwind alone, or panics abort instead of unwinding.
+[toolchain]
+channel = "1.93.0"
+components = ["rustfmt", "clippy"]

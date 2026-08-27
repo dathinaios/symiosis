@@ -10,8 +10,11 @@ rustflags = [
 ]
 
 [target.aarch64-apple-darwin]
+# No -no_compact_unwind here: arm64 macOS relies on compact unwind, and
+# disabling it breaks the unwinder. Panics then abort with "failed to initiate
+# panic, error 5" instead of unwinding, so every failing test becomes a SIGABRT
+# with no message. The flag is a link-speed trick that is only safe on x86_64.
 rustflags = [
-  "-C", "link-arg=-Wl,-no_compact_unwind",  # Disable compact unwinding for faster linking
   "-C", "split-debuginfo=unpacked"          # Faster debug info generation
 ]
 
