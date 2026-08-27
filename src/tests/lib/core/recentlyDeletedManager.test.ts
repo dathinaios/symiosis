@@ -275,28 +275,28 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
         'deleted-note.backup'
       )
       expect(mockDeps.refreshCacheAndUI).toHaveBeenCalled()
-      expect(manager.files).toHaveLength(1) // File should be removed from list
-      expect(manager.files[0].filename).toBe('another-note')
+      expect(manager.isVisible).toBe(false)
+      expect(manager.files).toHaveLength(0)
     })
 
-    it('should adjust selected index when removing selected file', async () => {
-      manager.selectFile(1) // Select second file
+    it('resets dialog state after a recover', async () => {
+      manager.selectFile(1)
       mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: true,
       })
 
       await manager.recoverFile('another-note')
 
-      expect(manager.selectedIndex).toBe(0) // Should adjust to valid index
+      expect(manager.selectedIndex).toBe(0)
+      expect(manager.error).toBeNull()
     })
 
-    it('should close dialog when no files remain', async () => {
+    it('should close the dialog even with files still listed', async () => {
       mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: true,
       })
 
       await manager.recoverFile('deleted-note')
-      await manager.recoverFile('another-note')
 
       expect(manager.isVisible).toBe(false)
     })
@@ -450,7 +450,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
       expect(manager.selectedIndex).toBe(0)
     })
 
-    it('after recovering a file, calling navigateUp/navigateDown should keep selectedIndex valid', async () => {
+    it('clears the list on recover, so nothing is left to navigate', async () => {
       const mockFiles: DeletedFile[] = [
         {
           filename: 'file1',
@@ -464,12 +464,6 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
           deleted_at: '2023-01-02',
           timestamp: 2,
         },
-        {
-          filename: 'file3',
-          backup_filename: 'file3.backup',
-          deleted_at: '2023-01-03',
-          timestamp: 3,
-        },
       ]
 
       mockDeps.versionService.getDeletedFiles.mockResolvedValue({
@@ -478,21 +472,20 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
       })
       await manager.openDialog()
 
-      manager.selectFile(2) // Select last file
+      manager.selectFile(1)
       mockDeps.versionService.recoverDeletedFile.mockResolvedValue({
         success: true,
       })
 
-      await manager.recoverFile('file3')
+      await manager.recoverFile('file2')
 
-      // Should adjust index to valid range
-      expect(manager.selectedIndex).toBe(1) // Last valid index after removal
+      expect(manager.isVisible).toBe(false)
+      expect(manager.files).toHaveLength(0)
+      expect(manager.selectedIndex).toBe(0)
 
       manager.navigateDown()
-      expect(manager.selectedIndex).toBe(1) // Should not go beyond bounds
-
       manager.navigateUp()
-      expect(manager.selectedIndex).toBe(0) // Should navigate up normally
+      expect(manager.selectedIndex).toBe(0)
     })
 
     it('repeated navigateUp at the first item should keep selectedIndex = 0', async () => {

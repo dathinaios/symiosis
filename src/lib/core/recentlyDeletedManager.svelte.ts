@@ -129,17 +129,8 @@ export function createRecentlyDeletedManager(
       )
 
       if (result.success) {
-        state.files = state.files.filter((f) => f.filename !== filename)
-
-        if (state.selectedIndex >= state.files.length) {
-          state.selectedIndex = Math.max(0, state.files.length - 1)
-        }
-
         await deps.refreshCacheAndUI()
-
-        if (state.files.length === 0) {
-          closeDialog()
-        }
+        closeDialog()
       } else {
         state.error = result.error || 'Failed to recover file'
       }
