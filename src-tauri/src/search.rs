@@ -42,6 +42,19 @@ pub struct HybridSearcher {
     matcher: Matcher,
 }
 
+/// How many rows FTS5 hands to the fuzzy ranker.
+///
+/// FTS5 only generates candidates here; the ranking that decides what the user
+/// sees happens afterwards in Rust. A fixed cap of 500 could therefore hide a
+/// note that would have scored well, whenever BM25 ranked it below the cap and
+/// the configured result count was larger. Never fetch fewer candidates than
+/// the number of results asked for.
+const MIN_CANDIDATES: usize = 500;
+
+pub(crate) fn candidate_limit(max_results: usize) -> usize {
+    max_results.max(MIN_CANDIDATES)
+}
+
 /// Builds the FTS5 MATCH pattern for a sanitised query.
 ///
 /// Every term is quoted. `sanitize_fts_query` keeps `-`, which FTS5 reads as an
@@ -79,7 +92,7 @@ impl HybridSearcher {
             return self.get_recent_notes(app_state, max_results);
         }
 
-        let candidates = self.get_candidates_from_sqlite(app_state, query)?;
+        let candidates = self.get_candidates_from_sqlite(app_state, query, max_results)?;
         let mut results = Vec::new();
 
         for candidate in candidates {
@@ -104,6 +117,7 @@ impl HybridSearcher {
         &self,
         app_state: &crate::core::state::AppState,
         query: &str,
+        max_results: usize,
     ) -> AppResult<Vec<SearchCandidate>> {
         let sanitized_query = sanitize_fts_query(query);
 
@@ -118,24 +132,25 @@ impl HybridSearcher {
                 "SELECT filename, content, modified FROM notes
                      WHERE notes MATCH ?
                      ORDER BY rank
-                     LIMIT 500",
+                     LIMIT ?",
             )?;
 
-            let rows = stmt.query_map(params![fts_pattern], |row| {
-                let filename: String = row.get(0)?;
-                let content: String = row.get(1)?;
-                let modified: i64 = row.get(2)?;
+            let rows =
+                stmt.query_map(params![fts_pattern, candidate_limit(max_results)], |row| {
+                    let filename: String = row.get(0)?;
+                    let content: String = row.get(1)?;
+                    let modified: i64 = row.get(2)?;
 
-                let title = extract_title_from_content(&content)
-                    .unwrap_or_else(|| extract_title_from_filename(&filename));
+                    let title = extract_title_from_content(&content)
+                        .unwrap_or_else(|| extract_title_from_filename(&filename));
 
-                Ok(SearchCandidate {
-                    filename,
-                    title,
-                    content,
-                    modified,
-                })
-            })?;
+                    Ok(SearchCandidate {
+                        filename,
+                        title,
+                        content,
+                        modified,
+                    })
+                })?;
 
             let candidates = rows.collect::<Result<Vec<_>, _>>()?;
             Ok(candidates)

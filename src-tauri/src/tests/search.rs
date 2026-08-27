@@ -299,3 +299,18 @@ fn test_search_survives_every_prefix_typed_on_the_way() {
 
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+#[test]
+fn test_candidate_limit_never_below_the_configured_result_count() {
+    use crate::search::candidate_limit;
+
+    // FTS5 only generates candidates; the ranking that decides what is shown
+    // happens afterwards. Fetching fewer rows than the configured result count
+    // means a note BM25 ranked low can never be scored, however well it would
+    // have matched.
+    assert_eq!(candidate_limit(10), 500);
+    assert_eq!(candidate_limit(100), 500);
+    assert_eq!(candidate_limit(500), 500);
+    assert_eq!(candidate_limit(2000), 2000);
+    assert_eq!(candidate_limit(10_000), 10_000);
+}
