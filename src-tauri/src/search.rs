@@ -42,6 +42,27 @@ pub struct HybridSearcher {
     matcher: Matcher,
 }
 
+/// Builds the FTS5 MATCH pattern for a sanitised query.
+///
+/// Every term is quoted. `sanitize_fts_query` keeps `-`, which FTS5 reads as an
+/// operator, so `foo-bar*` parses as a column filter and the whole query errors
+/// with "no such column". Quoting neutralises it, and for terms without `-` the
+/// quoted and unquoted forms match identically.
+pub(crate) fn build_fts_pattern(sanitized_query: &str) -> String {
+    let quoted = |word: &str| format!("\"{}\"*", word);
+
+    if sanitized_query.contains(' ') {
+        sanitized_query
+            .split_whitespace()
+            .filter(|word| !word.trim().is_empty())
+            .map(quoted)
+            .collect::<Vec<_>>()
+            .join(" OR ")
+    } else {
+        quoted(sanitized_query)
+    }
+}
+
 impl HybridSearcher {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let matcher = Matcher::new(Config::DEFAULT);
@@ -90,16 +111,7 @@ impl HybridSearcher {
             return Ok(Vec::new());
         }
 
-        let fts_pattern = if sanitized_query.contains(' ') {
-            sanitized_query
-                .split_whitespace()
-                .filter(|word| !word.trim().is_empty())
-                .map(|word| format!("{}*", word))
-                .collect::<Vec<_>>()
-                .join(" OR ")
-        } else {
-            format!("{}*", sanitized_query)
-        };
+        let fts_pattern = build_fts_pattern(&sanitized_query);
 
         crate::database::with_db(app_state, |conn| {
             let mut stmt = conn.prepare(

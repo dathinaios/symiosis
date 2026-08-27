@@ -2,7 +2,9 @@
 //!
 //! Tests for search functionality, FTS security, and performance.
 
-use crate::tests::test_utils::{test_search_notes_hybrid, TestConfigOverride};
+use crate::tests::test_utils::{
+    test_create_new_note, test_search_notes_hybrid, TestConfigOverride,
+};
 use serial_test::serial;
 use std::time::Instant;
 
@@ -226,4 +228,42 @@ fn test_search_performance_stress_queries() {
             }
         }
     }
+}
+
+#[test]
+fn test_build_fts_pattern_quotes_every_term() {
+    use crate::search::build_fts_pattern;
+
+    // Hyphens are FTS5 operators. Unquoted, `a-b*` parses as a column filter and
+    // the query fails with "no such column", so search returns nothing at all.
+    assert_eq!(
+        build_fts_pattern("comprehensive-tips"),
+        "\"comprehensive-tips\"*"
+    );
+
+    assert_eq!(build_fts_pattern("databases"), "\"databases\"*");
+    assert_eq!(
+        build_fts_pattern("comprehensive tips"),
+        "\"comprehensive\"* OR \"tips\"*"
+    );
+    assert_eq!(build_fts_pattern("a-b c-d"), "\"a-b\"* OR \"c-d\"*");
+}
+
+#[test]
+#[serial]
+fn test_search_finds_a_hyphenated_filename() {
+    let _test_config = TestConfigOverride::new().expect("Failed to setup test config");
+
+    test_create_new_note("comprehensive-tips-to-databases.md").expect("note should be created");
+
+    let results = test_search_notes_hybrid("comprehensive-tips-to-databases", 10)
+        .expect("search must not error on a hyphenated query");
+
+    assert!(
+        results
+            .iter()
+            .any(|f| f == "comprehensive-tips-to-databases.md"),
+        "hyphenated query returned {:?}",
+        results
+    );
 }
