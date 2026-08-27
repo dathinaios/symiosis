@@ -21,6 +21,7 @@ import { createEditorManager } from '../core/editorManager.svelte'
 import { createFocusManager } from '../core/focusManager.svelte'
 import { createVersionExplorerManager } from '../core/versionExplorerManager.svelte'
 import { createRecentlyDeletedManager } from '../core/recentlyDeletedManager.svelte'
+import { createContentLoadingManager } from '../core/contentLoadingManager.svelte'
 import { noteService } from '../services/noteService.svelte'
 import { configService } from '../services/configService.svelte'
 import { versionService } from '../services/versionService.svelte'
@@ -85,6 +86,9 @@ export interface AppManagers {
   recentlyDeletedManager: ReturnType<
     typeof import('../core/recentlyDeletedManager.svelte').createRecentlyDeletedManager
   >
+  contentLoadingManager: ReturnType<
+    typeof import('../core/contentLoadingManager.svelte').createContentLoadingManager
+  >
 }
 
 export interface AppCoordinator {
@@ -139,18 +143,6 @@ export function createAppCoordinator(
     contentNavigationManager,
   })
 
-  const versionExplorerManager = createVersionExplorerManager({
-    focusSearch: () => focusManager.focusSearch(),
-    versionService,
-    loadNoteContent,
-  })
-
-  let contentRequestController: AbortController | null = null
-  let contentRequestSequence = 0
-  let currentLoadedNote: string | null = null
-
-  let isFirstRun = false
-
   const isLoading = $derived(searchManager.isLoading)
   const filteredNotes = $derived(searchManager.filteredNotes)
   const query = $derived(searchManager.searchInput)
@@ -169,6 +161,32 @@ export function createAppCoordinator(
 
     return notes[index]?.filename || null
   })
+
+  // Constructed after the derived selection because it reads it lazily;
+  // everything below this point may reference contentLoadingManager without
+  // relying on hoisting.
+  const contentLoadingManager = createContentLoadingManager({
+    contentManager,
+    contentNavigationManager,
+    searchManager,
+    focusManager,
+    configService,
+    getSelectedNote: () => selectedNote,
+  })
+
+  const versionExplorerManager = createVersionExplorerManager({
+    focusSearch: () => focusManager.focusSearch(),
+    versionService,
+    loadNoteContent: contentLoadingManager.loadNoteContent,
+  })
+
+  const recentlyDeletedManager = createRecentlyDeletedManager({
+    focusSearch: () => focusManager.focusSearch(),
+    refreshCacheAndUI: contentLoadingManager.refreshCacheAndUI,
+    versionService,
+  })
+
+  let isFirstRun = false
 
   const noteActions = createNoteActions({
     noteService,
@@ -222,94 +240,6 @@ export function createAppCoordinator(
     }
   }
 
-  function abortPreviousContentRequest(): void {
-    if (contentRequestController) {
-      contentRequestController.abort()
-    }
-  }
-
-  function handleEmptyNote(currentSequence: number): void {
-    if (currentSequence === contentRequestSequence) {
-      contentManager.setNoteContent('')
-    }
-  }
-
-  function setupNewContentRequest(): AbortController {
-    const controller = new AbortController()
-    contentRequestController = controller
-    return controller
-  }
-
-  function isRequestStillValid(
-    controller: AbortController,
-    currentSequence: number
-  ): boolean {
-    return (
-      !controller.signal.aborted && currentSequence === contentRequestSequence
-    )
-  }
-
-  function scheduleScrollToFirstMatch(currentSequence: number): void {
-    requestAnimationFrame(() => {
-      if (currentSequence === contentRequestSequence) {
-        contentManager.scrollToFirstMatch()
-      }
-    })
-  }
-
-  async function handleContentLoadError(
-    error: unknown,
-    controller: AbortController,
-    currentSequence: number
-  ): Promise<void> {
-    if (!isRequestStillValid(controller, currentSequence)) {
-      return
-    }
-
-    console.error('Failed to load note content:', error)
-    const errorMessage = String(error)
-    contentManager.setNoteContent(`Error loading note: ${errorMessage}`)
-
-    if (errorMessage.includes('Note not found')) {
-      try {
-        await refreshCacheAndUI()
-      } catch (refreshError) {
-        console.error('Auto-refresh failed:', refreshError)
-      }
-    }
-  }
-
-  async function loadNoteContent(note: string): Promise<void> {
-    abortPreviousContentRequest()
-
-    const currentSequence = ++contentRequestSequence
-
-    // Only reset navigation when switching to a different note
-    const isNoteSwitching = currentLoadedNote !== note
-    if (isNoteSwitching) {
-      contentNavigationManager.resetNavigation()
-    }
-
-    if (!note) {
-      currentLoadedNote = null
-      handleEmptyNote(currentSequence)
-      return
-    }
-
-    currentLoadedNote = note
-    const controller = setupNewContentRequest()
-
-    try {
-      await contentManager.refreshContent(note)
-
-      if (isRequestStillValid(controller, currentSequence)) {
-        scheduleScrollToFirstMatch(currentSequence)
-      }
-    } catch (e) {
-      await handleContentLoadError(e, controller, currentSequence)
-    }
-  }
-
   async function saveAndExitNote(): Promise<void> {
     await noteActions.saveNote()
     exitEditMode()
@@ -318,22 +248,11 @@ export function createAppCoordinator(
     focusManager.setSelectedIndex(0)
   }
 
-  async function refreshCacheAndUI(): Promise<void> {
-    await configService.refreshCache()
-    await refreshUI()
-  }
-
-  const recentlyDeletedManager = createRecentlyDeletedManager({
-    focusSearch: () => focusManager.focusSearch(),
-    refreshCacheAndUI,
-    versionService,
-  })
-
   function setupSearchCompleteCallback(): void {
     searchManager.setSearchCompleteCallback(async (notes: NoteMetadata[]) => {
       if (notes.length > 0) {
         focusManager.setSelectedIndex(0)
-        await loadNoteContent(notes[0].filename)
+        await contentLoadingManager.loadNoteContent(notes[0].filename)
       }
     })
   }
@@ -352,7 +271,7 @@ export function createAppCoordinator(
     })
 
     const unlistenCacheRefresh = await listen('cache-refreshed', async () => {
-      await refreshUI()
+      await contentLoadingManager.refreshUI()
     })
 
     const unlistenFirstRun = await listen('first-run-detected', () => {
@@ -427,7 +346,7 @@ export function createAppCoordinator(
       const notes = await searchManager.executeSearch('')
       if (notes.length > 0) {
         focusManager.setSelectedIndex(0)
-        await loadNoteContent(notes[0].filename)
+        await contentLoadingManager.loadNoteContent(notes[0].filename)
       }
     }
   }
@@ -443,10 +362,7 @@ export function createAppCoordinator(
   }): () => void {
     return () => {
       searchManager.abort()
-      if (contentRequestController) {
-        contentRequestController.abort()
-        contentRequestController = null
-      }
+      contentLoadingManager.abort()
       listeners.unlisten()
       listeners.unlistenCacheRefresh()
       listeners.unlistenFirstRun()
@@ -455,21 +371,6 @@ export function createAppCoordinator(
       listeners.unlistenDbLoadingComplete()
       listeners.unlistenDbLoadingError()
       configManager.cleanup()
-    }
-  }
-
-  async function refreshUI(): Promise<void> {
-    const previousQuery = searchManager.searchInput
-    const previousNote = selectedNote
-
-    await searchManager.executeSearch(previousQuery)
-
-    if (previousNote) {
-      const idx = filteredNotes.findIndex((n) => n.filename === previousNote)
-      if (idx >= 0) {
-        focusManager.setSelectedIndex(idx)
-        await loadNoteContent(previousNote)
-      }
     }
   }
 
@@ -501,10 +402,10 @@ export function createAppCoordinator(
     settingsActions,
     noteService,
     appCoordinator: {
-      loadNoteContent,
+      loadNoteContent: contentLoadingManager.loadNoteContent,
       exitEditMode,
       saveAndExitNote,
-      refreshCacheAndUI,
+      refreshCacheAndUI: contentLoadingManager.refreshCacheAndUI,
     },
   })
 
@@ -576,6 +477,7 @@ export function createAppCoordinator(
         progressManager,
         versionExplorerManager,
         recentlyDeletedManager,
+        contentLoadingManager,
       }
     },
 
@@ -598,7 +500,7 @@ export function createAppCoordinator(
 
     get actions() {
       return {
-        loadNoteContent,
+        loadNoteContent: contentLoadingManager.loadNoteContent,
         deleteNote: () => noteActions.deleteNote(selectedNote),
         createNote: noteActions.createNote,
         renameNote: (newName?: string) =>
@@ -610,7 +512,7 @@ export function createAppCoordinator(
             ? noteActions.enterEditMode(selectedNote)
             : Promise.resolve(),
         exitEditMode,
-        refreshCacheAndUI,
+        refreshCacheAndUI: contentLoadingManager.refreshCacheAndUI,
         saveConfigAndRefresh,
       }
     },
