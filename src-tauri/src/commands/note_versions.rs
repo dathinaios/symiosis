@@ -148,10 +148,11 @@ pub fn recover_note_version(
 
         let version_content = fs::read_to_string(&version_path)?;
 
-        // Use the same programmatic flag and safe write as normal saves
-        super::notes::with_programmatic_flag(&app_state, || {
-            safe_write_note(&notes_dir, &note_path, &version_content)
-        })?;
+        // Same recording and safe write as a normal save
+        app_state
+            .self_writes
+            .record_write(&note_path, &version_content);
+        safe_write_note(&notes_dir, &note_path, &version_content)?;
 
         let modified = file_modified_secs(&note_path);
 
@@ -273,9 +274,10 @@ pub fn recover_deleted_file(
         let backup_content = fs::read_to_string(&backup_path)?;
 
         // Write to the original location
-        super::notes::with_programmatic_flag(&app_state, || {
-            safe_write_note(&notes_dir, &note_path, &backup_content)
-        })?;
+        app_state
+            .self_writes
+            .record_write(&note_path, &backup_content);
+        safe_write_note(&notes_dir, &note_path, &backup_content)?;
 
         let modified = file_modified_secs(&note_path);
 

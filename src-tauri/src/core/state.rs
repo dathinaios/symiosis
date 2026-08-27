@@ -1,15 +1,16 @@
-use crate::{config::AppConfig, core::AppResult, database::DatabaseManager, logging::log};
-use std::path::PathBuf;
-use std::sync::{
-    atomic::{AtomicBool, AtomicUsize},
-    Arc, Mutex, RwLock,
+use crate::{
+    config::AppConfig, core::self_writes::SelfWriteRegistry, core::AppResult,
+    database::DatabaseManager, logging::log,
 };
+use std::path::PathBuf;
+use std::sync::{atomic::AtomicBool, Arc, Mutex, RwLock};
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<RwLock<AppConfig>>,
     pub was_first_run: Arc<AtomicBool>,
-    pub programmatic_operation_in_progress: Arc<AtomicUsize>,
+    /// Filesystem changes this app made, so the watcher can ignore its own echo.
+    pub self_writes: Arc<SelfWriteRegistry>,
     pub database_manager: Arc<Mutex<DatabaseManager>>,
     pub database_rebuild_lock: Arc<RwLock<()>>,
 }
@@ -21,7 +22,7 @@ impl AppState {
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
             was_first_run: Arc::new(AtomicBool::new(false)),
-            programmatic_operation_in_progress: Arc::new(AtomicUsize::new(0)),
+            self_writes: Arc::new(SelfWriteRegistry::default()),
             database_manager: Arc::new(Mutex::new(database_manager)),
             database_rebuild_lock: Arc::new(RwLock::new(())),
         })
@@ -85,7 +86,7 @@ impl AppState {
         let state = Self {
             config: Arc::new(RwLock::new(config)),
             was_first_run: Arc::new(AtomicBool::new(false)),
-            programmatic_operation_in_progress: Arc::new(AtomicUsize::new(0)),
+            self_writes: Arc::new(SelfWriteRegistry::default()),
             database_manager: Arc::new(Mutex::new(database_manager)),
             database_rebuild_lock: Arc::new(RwLock::new(())),
         };
@@ -103,10 +104,6 @@ impl AppState {
 
     pub fn was_first_run(&self) -> &AtomicBool {
         &self.was_first_run
-    }
-
-    pub fn programmatic_operation_in_progress(&self) -> &AtomicUsize {
-        &self.programmatic_operation_in_progress
     }
 
     /// The configured notes directory.

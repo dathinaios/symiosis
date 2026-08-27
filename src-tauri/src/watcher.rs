@@ -182,50 +182,57 @@ fn handle_file_system_event(
         None,
     );
 
-    let prog_op_count = app_state
-        .programmatic_operation_in_progress()
-        .load(Ordering::Relaxed);
+    // Drop only the paths whose current on-disk state is exactly what this app
+    // just wrote. Paths we did not touch are always processed, even while one of
+    // our own writes is in flight.
+    let external_paths: Vec<&PathBuf> = event
+        .paths
+        .iter()
+        .filter(|path| !app_state.self_writes.is_own_write(path))
+        .collect();
 
     #[cfg(debug_assertions)]
-    if prog_op_count > 0 {
+    if external_paths.len() < event.paths.len() {
         log(
             "WATCHER_EVENT",
-            "⏸️  Skipping - programmatic operation in progress",
+            "⏸️  Skipping paths written by this app",
             None,
         );
     }
 
-    if prog_op_count == 0 {
-        let should_process = event
-            .paths
-            .iter()
-            .any(|path| debounced_watcher.should_process_event(path));
+    if external_paths.is_empty() {
+        return;
+    }
 
-        #[cfg(debug_assertions)]
-        log(
-            "WATCHER_EVENT",
-            if should_process {
-                "✅ Processing event"
-            } else {
-                "⏭️  Skipping - debounced"
-            },
-            None,
-        );
+    let should_process = external_paths
+        .iter()
+        .any(|path| debounced_watcher.should_process_event(path));
 
+    #[cfg(debug_assertions)]
+    log(
+        "WATCHER_EVENT",
         if should_process {
-            process_file_event_async(event, app_handle, app_state, canonical_notes_dir);
-        }
+            "✅ Processing event"
+        } else {
+            "⏭️  Skipping - debounced"
+        },
+        None,
+    );
+
+    if should_process {
+        let paths: Vec<PathBuf> = external_paths.into_iter().cloned().collect();
+        process_file_event_async(&paths, app_handle, app_state, canonical_notes_dir);
     }
 }
 
 fn process_file_event_async(
-    event: &Event,
+    paths: &[PathBuf],
     app_handle: &AppHandle,
     app_state: &Arc<crate::core::state::AppState>,
     canonical_notes_dir: &PathBuf,
 ) {
     let app_handle_for_refresh = app_handle.clone();
-    let paths_to_update = event.paths.clone();
+    let paths_to_update = paths.to_vec();
     let app_state_for_task = app_state.clone();
     let canonical_dir = canonical_notes_dir.clone();
 

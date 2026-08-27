@@ -147,3 +147,110 @@ mod serial_tests {
         );
     }
 }
+
+/// The suppression used to be a global counter cleared five seconds later, so
+/// saving one note made the watcher deaf to every other note for five seconds.
+/// Suppression is now per path and content-addressed.
+#[cfg(test)]
+mod self_write_tests {
+    use crate::core::self_writes::SelfWriteRegistry;
+    use tempfile::TempDir;
+
+    fn write(path: &std::path::Path, content: &str) {
+        std::fs::write(path, content).expect("Should write test file");
+    }
+
+    #[test]
+    fn recognises_a_write_this_app_made() {
+        let dir = TempDir::new().expect("Should create temp dir");
+        let note = dir.path().join("mine.md");
+
+        let registry = SelfWriteRegistry::default();
+        registry.record_write(&note, "written by the app");
+        write(&note, "written by the app");
+
+        assert!(
+            registry.is_own_write(&note),
+            "The app's own write should be recognised"
+        );
+    }
+
+    #[test]
+    fn does_not_suppress_a_different_file() {
+        let dir = TempDir::new().expect("Should create temp dir");
+        let ours = dir.path().join("ours.md");
+        let theirs = dir.path().join("theirs.md");
+
+        let registry = SelfWriteRegistry::default();
+        registry.record_write(&ours, "app content");
+        write(&ours, "app content");
+        write(&theirs, "edited in another editor");
+
+        assert!(registry.is_own_write(&ours));
+        assert!(
+            !registry.is_own_write(&theirs),
+            "An edit to another file must never be suppressed"
+        );
+    }
+
+    #[test]
+    fn does_not_suppress_an_external_edit_to_the_same_file() {
+        let dir = TempDir::new().expect("Should create temp dir");
+        let note = dir.path().join("contested.md");
+
+        let registry = SelfWriteRegistry::default();
+        registry.record_write(&note, "app content");
+        write(&note, "app content");
+        assert!(registry.is_own_write(&note));
+
+        // Somebody else changes the same file straight afterwards.
+        write(&note, "content from another editor");
+        assert!(
+            !registry.is_own_write(&note),
+            "A different body on disk means the change was not ours"
+        );
+    }
+
+    #[test]
+    fn recognises_a_removal_but_not_a_recreation() {
+        let dir = TempDir::new().expect("Should create temp dir");
+        let note = dir.path().join("gone.md");
+        write(&note, "about to be deleted");
+
+        let registry = SelfWriteRegistry::default();
+        registry.record_removal(&note);
+        std::fs::remove_file(&note).expect("Should delete test file");
+        assert!(registry.is_own_write(&note), "Our own delete is recognised");
+
+        write(&note, "restored by another program");
+        assert!(
+            !registry.is_own_write(&note),
+            "A file reappearing was not our removal"
+        );
+    }
+
+    #[test]
+    fn records_both_sides_of_a_move() {
+        let dir = TempDir::new().expect("Should create temp dir");
+        let old = dir.path().join("before.md");
+        let new = dir.path().join("after.md");
+        write(&old, "moved content");
+
+        let registry = SelfWriteRegistry::default();
+        registry.record_move(&old, &new);
+        std::fs::rename(&old, &new).expect("Should rename test file");
+
+        assert!(registry.is_own_write(&old), "The vacated path is ours");
+        assert!(registry.is_own_write(&new), "The new path is ours");
+    }
+
+    #[test]
+    fn an_unrecorded_path_is_always_external() {
+        let dir = TempDir::new().expect("Should create temp dir");
+        let note = dir.path().join("never-touched.md");
+        write(&note, "content");
+
+        let registry = SelfWriteRegistry::default();
+        assert!(!registry.is_own_write(&note));
+    }
+}

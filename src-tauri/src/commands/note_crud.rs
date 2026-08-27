@@ -114,8 +114,11 @@ pub fn create_new_note(
             fs::create_dir_all(parent)?;
         }
 
+        // Record before writing so the watcher recognises its own echo.
+        app_state.self_writes.record_write(&note_path, "");
+
         // Atomic file creation - this eliminates TOCTOU by using create_new flag
-        super::notes::with_programmatic_flag(&app_state, || -> AppResult<()> {
+        (|| -> AppResult<()> {
             match std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true) // This will fail if file already exists
@@ -133,7 +136,7 @@ pub fn create_new_note(
                 ),
                 Err(e) => Err(AppError::FileWrite(format!("Failed to create note: {}", e))),
             }
-        })?;
+        })()?;
 
         let modified = file_modified_secs(&note_path);
 
@@ -249,9 +252,8 @@ fn perform_backup_and_delete(
 
     match copy_result {
         Ok(backup_path) => {
-            match super::notes::with_programmatic_flag(app_state, || {
-                fs::remove_file(note_path).map_err(AppError::from)
-            }) {
+            app_state.self_writes.record_removal(note_path);
+            match fs::remove_file(note_path).map_err(AppError::from) {
                 Ok(()) => {
                     log(
                         "FILE_OPERATION",
@@ -377,9 +379,8 @@ fn perform_safe_write_and_update(
         fs::create_dir_all(parent)?;
     }
 
-    super::notes::with_programmatic_flag(app_state, || {
-        safe_write_note(notes_dir, note_path, content)
-    })?;
+    app_state.self_writes.record_write(note_path, content);
+    safe_write_note(notes_dir, note_path, content)?;
 
     let modified = file_modified_secs(note_path);
 
@@ -422,9 +423,8 @@ fn perform_atomic_file_rename(
     old_path: &std::path::PathBuf,
     new_path: &std::path::PathBuf,
 ) -> AppResult<()> {
-    super::notes::with_programmatic_flag(app_state, || {
-        fs::rename(old_path, new_path).map_err(AppError::from)
-    })
+    app_state.self_writes.record_move(old_path, new_path);
+    fs::rename(old_path, new_path).map_err(AppError::from)
 }
 
 fn handle_successful_rename(
