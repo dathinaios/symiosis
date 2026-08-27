@@ -99,8 +99,16 @@ Features simple file list, keyboard navigation, and recovery.
   }
 
   $effect(() => {
-    if (show && dialogElement) {
-      setTimeout(() => dialogElement!.focus(), 10)
+    // `files` is read so this re-runs after a recover: the recovered row
+    // unmounts while holding focus, dropping it to <body>. The dialog is then
+    // inert — its own keydown handler never fires, and global shortcuts stay
+    // suppressed while a dialog is open.
+    if (show && dialogElement && files) {
+      setTimeout(() => {
+        if (dialogElement && !dialogElement.contains(document.activeElement)) {
+          dialogElement.focus()
+        }
+      }, 10)
     }
   })
 

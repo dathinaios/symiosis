@@ -36,4 +36,8 @@ export default defineConfig(async () => ({
     environment: 'happy-dom',
     globals: true,
   },
+
+  // Component tests mount real components, which needs Svelte's client build.
+  // Without this vitest resolves the server build and `mount()` throws.
+  resolve: process.env.VITEST ? { conditions: ['browser'] } : undefined,
 }));
