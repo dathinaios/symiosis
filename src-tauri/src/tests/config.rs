@@ -582,3 +582,38 @@ fn test_backups_follow_the_running_config_not_the_file_on_disk() {
         backup_dir.display()
     );
 }
+
+#[test]
+fn test_load_custom_theme_file_reports_readable_errors() {
+    use crate::commands::config::load_custom_theme_file;
+
+    // The command returns `Result<_, String>` like every other command. When it
+    // returned `AppResult<_>`, the error crossed IPC as a serialised object and
+    // the frontend rendered it as "[object Object]" — so what matters here is
+    // that the failure arrives as the message itself.
+    let missing = load_custom_theme_file("/nonexistent/theme.css".to_string())
+        .expect_err("a missing file should fail");
+    assert!(
+        missing.contains("/nonexistent/theme.css"),
+        "error should name the path, got: {}",
+        missing
+    );
+
+    let temp = std::env::temp_dir().join("symiosis_theme_test.txt");
+    std::fs::write(&temp, "body {}").expect("write temp theme");
+    let wrong_extension = load_custom_theme_file(temp.to_string_lossy().to_string())
+        .expect_err("a non-css file should fail");
+    let _ = std::fs::remove_file(&temp);
+    assert!(
+        wrong_extension.contains(".css"),
+        "error should explain the extension rule, got: {}",
+        wrong_extension
+    );
+
+    let css = std::env::temp_dir().join("symiosis_theme_test.css");
+    std::fs::write(&css, "body { color: red; }").expect("write temp theme");
+    let loaded = load_custom_theme_file(css.to_string_lossy().to_string())
+        .expect("a readable .css file should load");
+    let _ = std::fs::remove_file(&css);
+    assert_eq!(loaded, "body { color: red; }");
+}

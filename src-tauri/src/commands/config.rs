@@ -193,52 +193,36 @@ pub fn get_preferences_config(
     config.preferences.clone()
 }
 
+/// Returns `Result<_, String>` like every other command: an `AppError` crosses
+/// the IPC boundary as a serialised object, which the frontend renders as
+/// "[object Object]" instead of the message.
 #[tauri::command]
-pub fn load_custom_theme_file(path: String) -> AppResult<String> {
-    let theme_path = std::path::Path::new(&path);
+pub fn load_custom_theme_file(path: String) -> Result<String, String> {
+    let result = || -> AppResult<String> {
+        let theme_path = std::path::Path::new(&path);
 
-    if !theme_path.exists() {
-        return Err(AppError::FileNotFound(path));
-    }
-
-    if !theme_path.is_file() {
-        return Err(AppError::InvalidPath(format!(
-            "Path is not a file: {}",
-            path
-        )));
-    }
-
-    match theme_path.extension().and_then(|ext| ext.to_str()) {
-        Some("css") => {}
-        _ => {
-            return Err(AppError::InvalidPath(
-                "Theme file must have .css extension".to_string(),
-            ))
+        if !theme_path.exists() {
+            return Err(AppError::FileNotFound(path.clone()));
         }
-    }
 
-    fs::read_to_string(theme_path)
-        .map_err(|e| AppError::FileRead(format!("Failed to read theme file: {}", e)))
-}
+        if !theme_path.is_file() {
+            return Err(AppError::InvalidPath(format!(
+                "Path is not a file: {}",
+                path
+            )));
+        }
 
-#[tauri::command]
-pub fn validate_theme_path(path: String) -> AppResult<bool> {
-    let theme_path = std::path::Path::new(&path);
+        match theme_path.extension().and_then(|ext| ext.to_str()) {
+            Some("css") => {}
+            _ => {
+                return Err(AppError::InvalidPath(
+                    "Theme file must have .css extension".to_string(),
+                ))
+            }
+        }
 
-    if !theme_path.exists() {
-        return Ok(false);
-    }
-
-    if !theme_path.is_file() {
-        return Err(AppError::InvalidPath(
-            "Path exists but is not a file".to_string(),
-        ));
-    }
-
-    match theme_path.extension().and_then(|ext| ext.to_str()) {
-        Some("css") => Ok(true),
-        _ => Err(AppError::InvalidPath(
-            "File must have .css extension".to_string(),
-        )),
-    }
+        fs::read_to_string(theme_path)
+            .map_err(|e| AppError::FileRead(format!("Failed to read theme file: {}", e)))
+    }();
+    result.map_err(|e| e.to_string())
 }

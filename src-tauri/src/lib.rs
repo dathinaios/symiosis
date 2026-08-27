@@ -228,14 +228,12 @@ fn register_command_handlers(
         refresh_cache,
         open_note_in_editor,
         open_note_folder,
-        list_all_notes,
         get_note_versions,
         get_version_content,
         recover_note_version,
         get_deleted_files,
         recover_deleted_file,
         show_main_window,
-        hide_main_window,
         get_config_content,
         save_config_content,
         config_exists,
@@ -247,10 +245,6 @@ fn register_command_handlers(
         get_preferences_config,
         scan_available_themes,
         load_custom_theme_file,
-        validate_theme_path,
-        utilities::mac_focus::save_current_frontmost_app,
-        utilities::mac_focus::show_app,
-        utilities::mac_focus::hide_app_and_restore_previous
     ]
 }
 

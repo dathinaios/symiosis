@@ -38,14 +38,3 @@ pub fn show_main_window(
     }();
     result.map_err(|e| e.to_string())
 }
-
-#[tauri::command]
-pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
-    let result = || -> AppResult<()> {
-        if let Some(window) = app.get_webview_window("main") {
-            window.hide()?;
-        }
-        Ok(())
-    }();
-    result.map_err(|e| e.to_string())
-}

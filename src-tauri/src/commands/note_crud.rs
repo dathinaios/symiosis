@@ -16,7 +16,9 @@ use crate::{
 use rusqlite::params;
 use std::fs;
 
-#[tauri::command]
+/// Not a `#[tauri::command]`: the frontend lists notes through search, so this
+/// exists only for the CRUD tests to read the index back.
+#[cfg(test)]
 pub fn list_all_notes(
     app_state: tauri::State<crate::core::state::AppState>,
 ) -> Result<Vec<String>, String> {

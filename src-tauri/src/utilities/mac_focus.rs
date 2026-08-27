@@ -23,7 +23,6 @@ lazy_static! {
 ///
 /// If Symiosis is already frontmost, preserves the existing saved PID to handle
 /// rapid toggle scenarios (prevents losing the restoration target).
-#[tauri::command]
 #[cfg(target_os = "macos")]
 pub fn save_current_frontmost_app() {
     let frontmost = unsafe {
@@ -49,7 +48,6 @@ pub fn save_current_frontmost_app() {
 }
 
 /// Show and activate the app window.
-#[tauri::command]
 #[cfg(target_os = "macos")]
 pub fn show_app(window: tauri::WebviewWindow) {
     if let Err(e) = window.show() {
@@ -70,7 +68,6 @@ pub fn show_app(window: tauri::WebviewWindow) {
 }
 
 /// Hide this app and restore focus to the previously-frontmost app.
-#[tauri::command]
 #[cfg(target_os = "macos")]
 pub fn hide_app_and_restore_previous(window: tauri::WebviewWindow) {
     if let Err(e) = window.hide() {
@@ -119,20 +116,17 @@ pub fn hide_app_and_restore_previous(window: tauri::WebviewWindow) {
 }
 
 // Stub implementations for non-macOS platforms
-#[tauri::command]
 #[cfg(not(target_os = "macos"))]
 pub fn save_current_frontmost_app() {
     // No-op on non-macOS platforms
 }
 
-#[tauri::command]
 #[cfg(not(target_os = "macos"))]
 pub fn show_app(window: tauri::WebviewWindow) {
     let _ = window.show();
     let _ = window.set_focus();
 }
 
-#[tauri::command]
 #[cfg(not(target_os = "macos"))]
 pub fn hide_app_and_restore_previous(window: tauri::WebviewWindow) {
     let _ = window.hide();
