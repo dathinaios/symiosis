@@ -88,6 +88,36 @@ describe('ContentNavigationManager', () => {
     navigationManager = createContentNavigationManager(mockDeps)
   })
 
+  describe('carrying position across a mode change', () => {
+    it('continues header navigation from where highlight navigation stopped', () => {
+      mockDeps.searchManager.query = 'search'
+      navigationManager.navigateNext()
+      navigationManager.navigateNext()
+
+      const highlights =
+        mockNoteContentElement.querySelectorAll('mark.highlight')
+      expect(highlights[1].classList.contains('highlight-current')).toBe(true)
+
+      // The second highlight sits under "Second Header". Dropping the query
+      // switches to header navigation, which used to reset to -1 and start
+      // again from the first header.
+      mockDeps.searchManager.query = ''
+      navigationManager.navigateNext()
+
+      const headers = mockNoteContentElement.querySelectorAll('h1, h2, h3')
+      expect(headers[2].classList.contains('header-current')).toBe(true)
+      expect(headers[0].classList.contains('header-current')).toBe(false)
+    })
+
+    it('starts at the beginning when nothing was current', () => {
+      mockDeps.searchManager.query = ''
+      navigationManager.navigateNext()
+
+      const headers = mockNoteContentElement.querySelectorAll('h1, h2, h3')
+      expect(headers[0].classList.contains('header-current')).toBe(true)
+    })
+  })
+
   describe('highlight navigation functionality', () => {
     beforeEach(() => {
       mockDeps.searchManager.query = 'search'

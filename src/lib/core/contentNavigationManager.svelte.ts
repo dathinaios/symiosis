@@ -132,21 +132,45 @@ export function createContentNavigationManager(
     return Array.from(contentElement.querySelectorAll('a[href]'))
   }
 
+  // Position of the element at or immediately before `reference`. Both lists
+  // come from querySelectorAll, so they are already in document order.
+  function indexNearest(elements: Element[], reference: Element): number {
+    if (elements.length === 0) return -1
+
+    let nearest = 0
+    elements.forEach((element, index) => {
+      const position = reference.compareDocumentPosition(element)
+      const atOrBefore =
+        element === reference ||
+        (position & Node.DOCUMENT_POSITION_PRECEDING) !== 0 ||
+        (position & Node.DOCUMENT_POSITION_CONTAINS) !== 0
+      if (atOrBefore) nearest = index
+    })
+    return nearest
+  }
+
   function getCurrentNavigationElements(): Element[] {
     const targetMode = determineNavigationMode()
+    const modeChanged =
+      state.navigationMode !== 'inactive' && state.navigationMode !== targetMode
 
-    // If mode changed, reset navigation state
-    if (
-      state.navigationMode !== 'inactive' &&
-      state.navigationMode !== targetMode
-    ) {
-      clearCurrentElementStyle()
-      state.currentIndex = -1
+    // Carry the position across a mode change. Resetting to -1 sent header
+    // navigation back to the top after navigating highlights, and vice versa.
+    const previousElement = modeChanged ? state.currentElement : null
+    if (modeChanged) clearCurrentElementStyle()
+
+    const elements =
+      targetMode === 'highlights'
+        ? getHighlightElementsWithFallback()
+        : getHeaderElementsWithFallback()
+
+    if (modeChanged) {
+      state.currentIndex = previousElement
+        ? indexNearest(elements, previousElement)
+        : -1
     }
 
-    return targetMode === 'highlights'
-      ? getHighlightElementsWithFallback()
-      : getHeaderElementsWithFallback()
+    return elements
   }
 
   function clearCurrentElementStyle(): void {
