@@ -1,6 +1,6 @@
 # Symiosis Architecture
 
-An assessment of the codebase as of v0.3.7, written before adding new features. It describes how the app is put together, the defects found and fixed during the audit, the consolidation pass that followed, and the issues deliberately left open.
+How the app is put together, and the decisions behind it that the code cannot state for itself. Deliberately excludes anything transient: fixed defects live in the commit history, open ones in the maintainer's notes.
 
 ---
 
@@ -91,136 +91,17 @@ Ranking is by match type first, so any title match outranks every content match:
 
 ---
 
-## What the audit found
+## Decisions worth knowing
 
-Every defect below was reproduced before being fixed, and each fix carries a regression test that was confirmed to fail against the old behaviour.
+Not a backlog — these are choices the code cannot explain about itself, kept so
+the next reader does not redo the reasoning. Open defects live in the
+maintainer's notes, not here.
 
-The starting point was not a codebase in trouble: 517 frontend tests, 119 Rust tests, eslint, svelte-check and `cargo fmt` were all green. Every defect lived in a gap _between_ what those suites covered — and two of them were invisible because the tests mocked the exact seam that broke.
+**`contentNavigationManager.svelte.ts` is deliberately not split** (~1000 lines): four navigation modes, accordion styling and clipboard handling. It sits behind one stable interface and causes no threading pain, so splitting it was deferred until a feature actually touches it.
 
-### Duplicate rows in the notes index
+**The frontend config state is initialised with placeholder values, on purpose.** `configManager` declares a 40-line object of empty strings and zeros until the real config loads. Making it `AppConfig | null` was considered and rejected: it would push a null-guard to 42 read sites (21 in `HintsPanel` alone, inside `$derived` blocks that evaluate before config loads), which is worse code than the initialiser it removes. The alternative — real default values in TypeScript — would create a second source of truth for defaults that Rust already owns. A better fix is to gate the config-dependent components on `configManager.isInitialized` and render nothing until then; that changes mount behaviour, so it wants a manual smoke test.
 
-`notes` is an FTS5 virtual table, so `filename` carries no uniqueness constraint and `INSERT OR REPLACE` never fires a conflict clause — it appends a second row. Reproduced directly against SQLite 3.45.1:
-
-```
-INSERT OR REPLACE ... ('a.md', 'v1', 100)
-INSERT OR REPLACE ... ('a.md', 'v2', 200)
-→ 2 rows for a.md
-```
-
-The trigger was a second bug: the `modified` column was written from `SystemTime::now()` rather than the file's mtime, so the two disagreed whenever a write straddled a second boundary. The next filesystem sync then saw an unchanged note as modified and re-inserted it.
-
-The consequences cascaded. The note appeared twice in search; the duplicate check in `init_db` reported `SQLITE_CORRUPT` and forced a full `DROP TABLE` and re-render of every note. Worse — this surfaced while building the regression test — once a duplicate existed, the verification read in `update_note_in_database` picked up the _wrong_ row, so every subsequent save also failed verification and went through database recovery: another full rebuild, every time.
-
-_Fixed:_ one `upsert_note` helper that deletes by filename before inserting, and `modified` read from the file's real mtime through a shared `fs_meta::file_modified_secs`.
-
-### Search highlighting corrupted rendered HTML
-
-Highlighting regex-replaced over raw HTML, matching inside tag names and attribute values:
-
-```
-query "http" → <a href="<mark class="highlight">http</mark>s://example.com/docs">
-query "code" → <pre><<mark class="highlight">code</mark> class="language-rust">…
-```
-
-The second case destroys the code block. Searches are issued at three characters, so `http`, `code`, `div`, `class`, `span`, `pre` and `mark` were all live triggers.
-
-_Fixed:_ split on tags and highlight only the text segments between them.
-
-### Highlight cache collided across notes
-
-The cache key was `content.substring(0, 100) + query`, so two notes sharing their opening markup — a very ordinary thing for notes to do — were served each other's rendered body.
-
-_Fixed:_ key on a hash of the full content.
-
-### `initialize()` threw on every startup
-
-`+page.svelte` called `setupReactiveEffects()` during component initialisation (correct), and `appCoordinator.initialize()` called it _again_ after `await`s inside `onMount`. Svelte 5's `validate_effect` throws `effect_orphan` when there is no active effect context — in production builds too.
-
-`initialize()` therefore aborted before returning its cleanup function, so the seven Tauri event listeners and `configManager.cleanup()` never unregistered, and every launch logged an unhandled rejection. The coordinator test could not see this: it mocked `setupAppEffects` outright.
-
-_Fixed:_ effects are registered only during component initialisation, and the test no longer mocks them — with the old code restored, four tests now fail with `effect_orphan`.
-
-### `bind:isDirty` threw a `TypeError` per keystroke
-
-`NoteView` bound to `editorManager.isDirty`, a getter-only property. Compiling the component with the real Svelte compiler shows what `bind:` generates:
-
-```js
-get isDirty() { return editorManager.isDirty; },
-set isDirty($$value) { editorManager.isDirty = $$value; }
-```
-
-`Editor`'s document-change handler invoked that setter on every keystroke, and assigning to a getter-only property in an ES module throws. It shipped because CodeMirror catches exceptions from update listeners and routes them to `logException` — so it was console noise, not a visible failure. The `onDirtyChange` callback the design wanted was already declared in `Props`, and never used.
-
-_Fixed:_ dirty state flows through that callback; `editorManager.isDirty` stays the single derived source of truth.
-
-### Two competing sources of truth for the notes directory
-
-`AppState` held the config in an `RwLock`, but six call sites went around it and re-read `config.toml` from disk. Note paths were resolved from `AppState` while backup paths were resolved from the file, so editing the config without a refresh made every backup fail with _"Note path is not within configured notes directory"_ — silently, because the rename path maps that error to "no backup needed". A regression test reproduces exactly that.
-
-There was a second smell in the same area: `load_config()` _wrote_ a default config file when the read failed, so a path lookup could write to disk.
-
-_Fixed:_ the notes directory is passed explicitly, `AppState::notes_dir()` is the single accessor, and creating the config file is now an explicit startup step.
-
-### The watcher went deaf for five seconds after every write
-
-Every file operation incremented a global counter and spawned a detached thread that slept five seconds before decrementing it. The watcher skipped **all** filesystem events while that counter was non-zero.
-
-So saving one note made the app blind to every other note for at least five seconds: an external edit in that window got no backup and no index update, leaving the database stale — which is precisely the staleness that fed the duplicate-row bug. Rapid saves extended the window indefinitely, and every operation leaked a thread.
-
-_Fixed:_ `SelfWriteRegistry` records what the app expects a path to look like after its own write, and the watcher drops an event only when the state on disk is still exactly that. Events for other paths are never suppressed, and an external edit that changes the bytes is recognised as external even inside the window — the time limit now bounds staleness, not correctness.
-
-### The tray's "Refresh Notes Cache" did nothing
-
-`let _ = refresh_cache(app_handle, app_state)` on an `async fn` builds a future and drops it without ever polling it. Found by enabling clippy as an error.
-
-_Fixed:_ the refresh body takes an `&AppState`, and the tray handler spawns it and logs failures.
-
-### No CI ran the tests
-
-`publish.yml` fires on version tags. Nothing ran the 517 frontend tests, 129 Rust tests, eslint, svelte-check, clippy or either formatter automatically.
-
-_Fixed:_ `ci.yml` runs all of them on push and pull request, with clippy gating at `-D warnings`.
-
----
-
-## The consolidation pass
-
-A second pass followed the audit. The finding was that the architecture is sound — the layering, the central coordinator and the factory/DI manager pattern are all correct and were kept — but that four concerns each had **two coexisting mechanisms**, which is what made changes feel like they threaded through everything.
-
-| Concern                                 | Was                                                                                                         | Now                                                                   |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Dispatch                                | An action registry in `keyboard.svelte.ts` _and_ an `actions` getter on the coordinator                     | One `commands.svelte.ts`                                              |
-| Getting the selection into an operation | A per-call `ActionContext` snapshot _and_ currying `selectedNote` into the note actions                     | One injected `getSelectedNote()`                                      |
-| Reading a value                         | `coordinator.query` / `coordinator.state.query` / `searchManager.searchInput` / keyboard's `AppState.query` | `searchManager` for search values, the coordinator for `selectedNote` |
-| Declaring a backend config field        | The struct, its `Default`, the sanitiser's list, the validator's list                                       | One `shortcuts_config!` invocation                                    |
-
-The registry also dispatched at three different altitudes from one table — an orchestration function, a manager method, and a service call that bypassed every layer — and `deleteNote` meant "open the confirmation dialog" in one place and "delete the note" in another. Both are gone.
-
-Two structural defects came out with it: the coordinator was hiding content-request sequencing and Tauri event lifecycle (now `core/contentLoadingManager.svelte.ts` and `app/lifecycle.svelte.ts`), and its construction order depended on hoisting — `versionExplorerManager` received a function defined 140 lines below it. Construction is now strictly top-down.
-
-Adding a note operation used to touch ~7 sites. It now takes a command, a keymap line, and an optional shortcut default.
-
----
-
-## Left open
-
-These are real but were out of scope. Roughly in order of how much they will cost later.
-
-**`contentNavigationManager.svelte.ts` is doing too much** (~1000 lines): four navigation modes, accordion styling and clipboard handling. It sits behind one stable interface and causes no threading pain, so splitting it was deferred until a feature actually touches it.
-
-**The frontend config state is initialised with placeholder values.** `configManager` declares a 40-line object of empty strings and zeros until the real config loads. Making it `AppConfig | null` was considered and rejected: it would push a null-guard to 42 read sites (21 in `HintsPanel` alone, inside `$derived` blocks that evaluate before config loads), which is worse code than the initialiser it removes. The alternative — real default values in TypeScript — would create a second source of truth for defaults that Rust already owns. A better fix is to gate the config-dependent components on `configManager.isInitialized` and render nothing until then; that changes mount behaviour, so it wants a manual smoke test.
-
-**Structured errors across IPC.** All 28 commands now return `Result<_, String>`, which is consistent but lossy — the frontend cannot distinguish a missing file from a permission error without matching on message text.
-
-**Content scoring lowercases each candidate's full body on every keystroke.** The candidate cap itself is no longer the problem — it now follows `max_search_results` — but the per-keystroke allocation over every candidate body remains.
-
-**No `~` expansion in `notes_directory`.** A hand-written `notes_directory = "~/Notes"` produces a literal `./~/Notes` directory; validation only logs a warning.
-
-**Remote images in notes phone home.** The CSP allows `img-src … https: http:` and the sanitizer permits `<img src>`, so a note containing a remote image URL makes a network request when rendered. `script-src 'unsafe-inline'` is also enabled (CodeMirror needs it), which weakens the defence-in-depth behind the sanitizer.
-
-**Startup reads up to 100 files.** `quick_filesystem_sync_check` reads full file contents to detect drift, and any single mismatch triggers a rebuild of the whole database.
-
-**First-run event is a race.** `first-run-detected` is emitted from a thread after a fixed 1s sleep, with no guarantee the frontend has registered its listener.
+**IPC errors are strings.** All 28 commands return `Result<_, String>` — consistent, but lossy: the frontend cannot distinguish a missing file from a permission error without matching on message text. Structuring them is a wide change for a benefit no current caller needs.
 
 ---
 
