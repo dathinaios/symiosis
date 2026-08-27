@@ -82,9 +82,6 @@ Shows highlighted content or renders the CodeMirror editor.
         class="note-content"
         bind:this={noteContentElement}
         use:registerNoteContentElement
-        tabindex="-1"
-        onfocus={() => focusManager.setNoteContentFocused(true)}
-        onblur={() => focusManager.setNoteContentFocused(false)}
         onclick={handleLinkClick}
       >
         <div class="markdown-body">
