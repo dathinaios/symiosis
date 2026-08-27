@@ -15,20 +15,14 @@ pub fn update_note_in_database(
     with_db(app_state, |conn| {
         let html_render = render_note(note_name, content);
 
-        // First try to update existing note
-        let updated_rows = conn
-            .execute(
-                "UPDATE notes SET content = ?2, html_render = ?3, modified = ?4, is_indexed = ?5 WHERE filename = ?1",
-                params![note_name, content, html_render, modified, true],
-            )?;
-
-        // If no rows were updated, insert new note
-        if updated_rows == 0 {
-            conn.execute(
-                "INSERT OR REPLACE INTO notes (filename, content, html_render, modified, is_indexed) VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![note_name, content, html_render, modified, true],
-            )?;
-        }
+        crate::services::database_service::upsert_note(
+            conn,
+            note_name,
+            content,
+            &html_render,
+            modified,
+            true,
+        )?;
 
         // Verify database was updated correctly
         let db_content = conn

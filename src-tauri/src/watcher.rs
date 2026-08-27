@@ -12,6 +12,7 @@ use crate::{
     logging::log,
     services::note_service::update_note_in_database,
     utilities::file_safety::{create_versioned_backup, BackupType},
+    utilities::fs_meta::file_modified_secs,
 };
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -271,18 +272,6 @@ fn should_ignore_file(filename: &str) -> bool {
     filename.contains("/.") || filename.starts_with('.')
 }
 
-fn get_file_modification_time(path: &PathBuf) -> i64 {
-    path.metadata()
-        .and_then(|m| m.modified())
-        .map(|mtime| {
-            mtime
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0)
-        })
-        .unwrap_or(0)
-}
-
 fn create_backup_if_content_changed(
     path: &PathBuf,
     filename: &str,
@@ -337,7 +326,7 @@ fn process_existing_file(
     filename: &str,
     app_state: &Arc<crate::core::state::AppState>,
 ) {
-    let modified = get_file_modification_time(path);
+    let modified = file_modified_secs(path);
 
     if let Ok(content) = std::fs::read_to_string(path) {
         create_backup_if_content_changed(path, filename, &content, app_state);

@@ -2,16 +2,19 @@ use crate::{
     core::{AppError, AppResult},
     database::with_db,
     logging::log,
-    services::{database_service::handle_database_recovery, note_service::update_note_in_database},
+    services::{
+        database_service::{handle_database_recovery, upsert_note},
+        note_service::update_note_in_database,
+    },
     utilities::{
         file_safety::{create_versioned_backup, safe_write_note, BackupType},
+        fs_meta::file_modified_secs,
         note_renderer::render_note,
         validation::validate_note_name,
     },
 };
 use rusqlite::params;
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[tauri::command]
 pub fn list_all_notes(
@@ -132,17 +135,11 @@ pub fn create_new_note(
             }
         })?;
 
-        let modified = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+        let modified = file_modified_secs(&note_path);
 
         match with_db(&app_state, |conn| {
             let html_render = render_note(note_name, "");
-            conn.execute(
-                "INSERT OR REPLACE INTO notes (filename, content, html_render, modified, is_indexed) VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![note_name, "", html_render, modified, true],
-            )?;
+            upsert_note(conn, note_name, "", &html_render, modified, true)?;
             Ok(())
         }) {
             Ok(_) => Ok(()),
@@ -376,10 +373,7 @@ fn perform_safe_write_and_update(
 
     super::notes::with_programmatic_flag(app_state, || safe_write_note(note_path, content))?;
 
-    let modified = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+    let modified = file_modified_secs(note_path);
 
     match update_note_in_database(app_state, note_name, content, modified) {
         Ok(()) => Ok(()),

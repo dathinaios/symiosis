@@ -18,6 +18,29 @@ use walkdir::WalkDir;
 // Remaining notes get metadata-only and are processed on demand
 const IMMEDIATE_RENDER_COUNT: usize = 2000;
 
+/// Insert or replace the row for `filename`.
+///
+/// `notes` is an FTS5 virtual table, so `filename` is not a primary key and
+/// `INSERT OR REPLACE` never fires a conflict clause — it silently appends a
+/// second row. Deleting by filename first is what actually makes this an
+/// upsert. Duplicate rows surface as doubled search results and then trip the
+/// duplicate check in `init_db`, which escalates to a full database rebuild.
+pub fn upsert_note(
+    conn: &Connection,
+    filename: &str,
+    content: &str,
+    html_render: &str,
+    modified: i64,
+    is_indexed: bool,
+) -> rusqlite::Result<()> {
+    conn.execute("DELETE FROM notes WHERE filename = ?1", params![filename])?;
+    conn.execute(
+        "INSERT INTO notes (filename, content, html_render, modified, is_indexed) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![filename, content, html_render, modified, is_indexed],
+    )?;
+    Ok(())
+}
+
 pub fn init_db(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch("CREATE VIRTUAL TABLE IF NOT EXISTS notes USING fts5(filename, content, html_render, modified UNINDEXED, is_indexed UNINDEXED);")?;
 
@@ -224,15 +247,9 @@ fn process_modified_file(
 
     if index < IMMEDIATE_RENDER_COUNT {
         let html_render = crate::utilities::note_renderer::render_note(filename, &content);
-        tx.execute(
-            "INSERT OR REPLACE INTO notes (filename, content, html_render, modified, is_indexed) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![filename, content, html_render, fs_modified, true],
-        )?;
+        upsert_note(tx, filename, &content, &html_render, fs_modified, true)?;
     } else {
-        tx.execute(
-            "INSERT OR REPLACE INTO notes (filename, content, html_render, modified, is_indexed) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![filename, content, "", fs_modified, false],
-        )?;
+        upsert_note(tx, filename, &content, "", fs_modified, false)?;
     }
 
     Ok(())

@@ -3,6 +3,7 @@ use crate::{
     services::note_service::update_note_in_database,
     utilities::{
         file_safety::safe_write_note,
+        fs_meta::file_modified_secs,
         strings::{
             format_timestamp_for_humans, parse_backup_filename, parse_deleted_backup_filename,
         },
@@ -11,7 +12,6 @@ use crate::{
 };
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
 
 fn validate_backup_path(backup_dir: &Path, relative_name: &str) -> AppResult<PathBuf> {
@@ -152,10 +152,7 @@ pub fn recover_note_version(
             safe_write_note(&note_path, &version_content)
         })?;
 
-        let modified = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+        let modified = file_modified_secs(&note_path);
 
         // Update database with recovered content
         update_note_in_database(&app_state, note_name, &version_content, modified)?;
@@ -279,10 +276,7 @@ pub fn recover_deleted_file(
             safe_write_note(&note_path, &backup_content)
         })?;
 
-        let modified = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+        let modified = file_modified_secs(&note_path);
 
         // Update database with recovered content
         update_note_in_database(&app_state, original_filename, &backup_content, modified)?;

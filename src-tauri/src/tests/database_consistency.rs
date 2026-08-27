@@ -6,8 +6,13 @@
 use super::test_utils::database_testing::{
     check_database_integrity, quick_health_check, verify_sync_consistency,
 };
-use super::test_utils::DbTestHarness;
-use crate::services::database_service::init_db;
+use super::test_utils::{
+    test_create_new_note, test_note_rows, test_refresh_cache_sync,
+    test_save_note_with_content_check, test_search_notes_hybrid, test_set_note_modified,
+    DbTestHarness, TestConfigOverride,
+};
+use crate::services::database_service::{init_db, upsert_note};
+use crate::utilities::fs_meta::file_modified_secs;
 use rusqlite::params;
 use std::collections::HashMap;
 
@@ -754,6 +759,118 @@ mod real_database_function_tests {
                     "File should retain externally modified content after validation failure"
                 );
             }
+        }
+    }
+
+    /// `notes` is an FTS5 virtual table, so `filename` carries no uniqueness
+    /// constraint and `INSERT OR REPLACE` appends rather than replaces. The
+    /// shared upsert helper must leave exactly one row however often it runs.
+    #[test]
+    fn test_upsert_note_never_duplicates_a_filename() {
+        let harness = DbTestHarness::new().expect("Failed to create test harness");
+        let conn = harness
+            .get_test_connection()
+            .expect("Failed to get connection");
+        init_db(&conn).expect("init_db should succeed");
+
+        for (content, modified) in [("v1", 1000i64), ("v2", 999), ("v3", 1001)] {
+            upsert_note(&conn, "a.md", content, "<p>rendered</p>", modified, true)
+                .expect("upsert should succeed");
+        }
+
+        let (content, modified): (String, i64) = conn
+            .query_row(
+                "SELECT content, modified FROM notes WHERE filename = ?1",
+                params!["a.md"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("Should find exactly one row");
+        assert_eq!(content, "v3", "Latest upsert should win");
+        assert_eq!(modified, 1001);
+
+        let row_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM notes WHERE filename = ?1",
+                params!["a.md"],
+                |row| row.get(0),
+            )
+            .expect("Should count rows");
+        assert_eq!(row_count, 1, "Repeated upserts must not accumulate rows");
+
+        // The schema check must stay happy — duplicates make it report corruption.
+        assert!(
+            init_db(&conn).is_ok(),
+            "init_db should not detect duplicate entries"
+        );
+    }
+
+    /// The database `modified` column has to be the file's real mtime. If it
+    /// were wall-clock-now at write time the two would disagree whenever a
+    /// write straddled a second boundary, and the next filesystem sync would
+    /// treat an unchanged note as modified.
+    #[test]
+    fn test_database_modified_matches_file_mtime() {
+        let test_override = TestConfigOverride::new().expect("Failed to create test override");
+        let notes_dir = test_override.notes_dir();
+
+        test_create_new_note("mtime.md").expect("Should create note");
+        assert_mtime_matches(&notes_dir, "mtime.md", "after create");
+
+        test_save_note_with_content_check("mtime.md", "some content", "")
+            .expect("Should save note");
+        assert_mtime_matches(&notes_dir, "mtime.md", "after save");
+    }
+
+    fn assert_mtime_matches(notes_dir: &std::path::Path, filename: &str, stage: &str) {
+        let file_mtime = file_modified_secs(&notes_dir.join(filename));
+        let rows = test_note_rows(filename).expect("Should read note rows");
+        assert_eq!(rows.len(), 1, "Expected one row {}", stage);
+        assert_eq!(
+            rows[0].1, file_mtime,
+            "Database modified should equal file mtime {}",
+            stage
+        );
+    }
+
+    /// The full regression. A stale `modified` value in the database is what
+    /// drives `refresh_cache` down the "this file changed" branch. Before the
+    /// fix that branch used `INSERT OR REPLACE`, which appends on an FTS5
+    /// table, so the sync produced a duplicate row: the note showed up twice in
+    /// search, and the next `init_db` reported corruption and forced a full
+    /// rebuild.
+    #[test]
+    fn test_refresh_cache_with_stale_modified_does_not_duplicate_rows() {
+        let _test_override = TestConfigOverride::new().expect("Failed to create test override");
+
+        test_create_new_note("sync.md").expect("Should create note");
+        test_save_note_with_content_check("sync.md", "distinctive body text", "")
+            .expect("Should save note");
+
+        for pass in 1..=3 {
+            // Put the stored timestamp out of step with the file, exactly as a
+            // wall-clock-now write would.
+            test_set_note_modified("sync.md", 1).expect("Should force a stale timestamp");
+
+            test_refresh_cache_sync().expect("Cache refresh sync should succeed");
+
+            let rows = test_note_rows("sync.md").expect("Should read note rows");
+            assert_eq!(
+                rows.len(),
+                1,
+                "Sync pass {} left {} rows for sync.md",
+                pass,
+                rows.len()
+            );
+            assert_eq!(rows[0].0, "distinctive body text");
+
+            let results =
+                test_search_notes_hybrid("distinctive", 100).expect("Search should succeed");
+            assert_eq!(
+                results,
+                vec!["sync.md".to_string()],
+                "Search should return the note exactly once after sync pass {}",
+                pass
+            );
         }
     }
 }

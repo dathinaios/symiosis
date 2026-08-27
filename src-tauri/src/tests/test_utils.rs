@@ -426,6 +426,63 @@ mod test_command_wrappers {
         crate::commands::notes::get_note_html_content(note_name, app_state)
     }
 
+    /// Run the same database sync that `refresh_cache` performs: re-assert the
+    /// schema, then reconcile every row against the filesystem.
+    pub fn test_refresh_cache_sync() -> Result<(), String> {
+        if std::env::var("SYMIOSIS_TEST_MODE_ENABLED").is_err() {
+            panic!("CRITICAL SAFETY ERROR: test_refresh_cache_sync() called outside of TestConfigOverride!");
+        }
+
+        let config = crate::config::load_config();
+        let app_state = AppState::new_with_fallback(config).expect("Test database setup failed");
+        crate::database::with_db_mut(&app_state, |conn| {
+            crate::services::database_service::init_db(conn)?;
+            crate::services::database_service::load_all_notes_into_sqlite(&app_state, conn)
+                .map_err(|e| e.into())
+        })
+        .map_err(|e| e.to_string())
+    }
+
+    /// Force the stored `modified` value out of step with the file on disk,
+    /// reproducing the state a save leaves behind when the database records a
+    /// timestamp that is not the file's real mtime.
+    pub fn test_set_note_modified(filename: &str, modified: i64) -> Result<(), String> {
+        if std::env::var("SYMIOSIS_TEST_MODE_ENABLED").is_err() {
+            panic!("CRITICAL SAFETY ERROR: test_set_note_modified() called outside of TestConfigOverride!");
+        }
+
+        let config = crate::config::load_config();
+        let app_state = AppState::new_with_fallback(config).expect("Test database setup failed");
+        crate::database::with_db(&app_state, |conn| {
+            conn.execute(
+                "UPDATE notes SET modified = ?2 WHERE filename = ?1",
+                rusqlite::params![filename, modified],
+            )?;
+            Ok(())
+        })
+        .map_err(|e| e.to_string())
+    }
+
+    /// Every `(content, modified)` row currently stored for `filename`.
+    /// More than one means the FTS5 table has accumulated duplicates.
+    pub fn test_note_rows(filename: &str) -> Result<Vec<(String, i64)>, String> {
+        if std::env::var("SYMIOSIS_TEST_MODE_ENABLED").is_err() {
+            panic!("CRITICAL SAFETY ERROR: test_note_rows() called outside of TestConfigOverride!");
+        }
+
+        let config = crate::config::load_config();
+        let app_state = AppState::new_with_fallback(config).expect("Test database setup failed");
+        crate::database::with_db(&app_state, |conn| {
+            let mut stmt =
+                conn.prepare("SELECT content, modified FROM notes WHERE filename = ?1")?;
+            let rows = stmt.query_map(rusqlite::params![filename], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })?;
+            Ok(rows.collect::<Result<Vec<_>, _>>()?)
+        })
+        .map_err(|e| e.to_string())
+    }
+
     pub fn test_search_notes_hybrid(
         query: &str,
         max_results: usize,
