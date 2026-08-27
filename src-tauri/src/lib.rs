@@ -13,6 +13,8 @@ mod watcher;
 use commands::*;
 use config::{load_config_with_first_run_info, parse_shortcut};
 use core::state::AppState;
+#[cfg(target_os = "macos")]
+use core::AppError;
 use logging::log;
 use services::database_service;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -258,6 +260,8 @@ fn handle_app_build_error(e: tauri::Error) -> ! {
 }
 
 fn run_app_with_platform_config(app: tauri::App) {
+    #[cfg(target_os = "macos")]
+    let mut app = app;
     #[cfg(target_os = "macos")]
     app.set_activation_policy(if DOCK_VISIBLE.load(Ordering::Relaxed) {
         tauri::ActivationPolicy::Regular
