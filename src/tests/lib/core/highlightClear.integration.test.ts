@@ -8,6 +8,10 @@ vi.mock('@tauri-apps/api/core', () => ({
 describe('Highlight Clear Integration', () => {
   beforeEach(() => {
     resetAllMocks()
+    // The coordinator debounces a real search off `searchInput`; without a
+    // resolved value the search-complete callback is handed `undefined` and
+    // rejects after the test has finished.
+    mockInvoke.mockResolvedValue([])
   })
 
   it('should re-enable highlights when user types after clearing with ESC', async () => {
