@@ -22,6 +22,8 @@ import { createContentLoadingManager } from '../core/contentLoadingManager.svelt
 import { noteService } from '../services/noteService.svelte'
 import { configService } from '../services/configService.svelte'
 import { versionService } from '../services/versionService.svelte'
+import { linkOpener } from '../services/linkOpener.svelte'
+import { notification } from '../utils/notification'
 import { createCommands, type Commands } from './commands.svelte'
 import { createKeyboardHandler } from './keyboard.svelte'
 import { setupAppEffects } from './effects/app.svelte'
@@ -96,6 +98,10 @@ export function createAppCoordinator(
   const contentNavigationManager = createContentNavigationManager({
     focusManager,
     searchManager,
+    linkOpener,
+    notifyError: (message: string) => {
+      void notification.error(message)
+    },
   })
 
   const editorManager = createEditorManager({

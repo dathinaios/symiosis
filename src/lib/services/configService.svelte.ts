@@ -5,6 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import type {
   AppConfig,
   GeneralConfig,
@@ -39,6 +40,11 @@ export interface ConfigService {
   saveConfigContent(content: string): Promise<void>
   initDefaults(): Promise<void>
   getDefaultConfig(): AppConfig
+  /**
+   * Subscribe to the backend pushing a new config (it watches `config.toml`).
+   * Resolves to the unsubscribe function.
+   */
+  onConfigUpdated(callback: (config: AppConfig) => void): Promise<() => void>
 }
 
 export function createConfigService(): ConfigService {
@@ -174,6 +180,14 @@ export function createConfigService(): ConfigService {
 
     async loadCustomThemeFile(path: string): Promise<string> {
       return await invoke<string>('load_custom_theme_file', { path })
+    },
+
+    async onConfigUpdated(
+      callback: (config: AppConfig) => void
+    ): Promise<() => void> {
+      return await listen<AppConfig>('config-updated', (event) => {
+        callback(event.payload)
+      })
     },
   }
 }

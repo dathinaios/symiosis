@@ -1,4 +1,3 @@
-import { listen } from '@tauri-apps/api/event'
 import type {
   AppConfig,
   GeneralConfig,
@@ -18,6 +17,7 @@ import { applyInterfaceConfig } from '../utils/cssVariables'
 export interface ConfigManagerDeps {
   configService: {
     refreshCache(): Promise<void>
+    onConfigUpdated(callback: (config: AppConfig) => void): Promise<() => void>
     getGeneralConfig(): Promise<GeneralConfig>
     getInterfaceConfig(): Promise<InterfaceConfig>
     getEditorConfig(): Promise<EditorConfig>
@@ -282,10 +282,9 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
   }
 
   async function setupConfigListener(): Promise<void> {
-    unlistenConfigChanged = await listen<AppConfig>(
-      'config-updated',
-      (event) => {
-        updateConfigState(event.payload)
+    unlistenConfigChanged = await deps.configService.onConfigUpdated(
+      (config) => {
+        updateConfigState(config)
       }
     )
   }

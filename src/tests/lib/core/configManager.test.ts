@@ -78,19 +78,15 @@ describe('configManager', () => {
   let manager: ReturnType<typeof createConfigManager>
   let mockUnlisten: ReturnType<typeof vi.fn>
   let mockInvoke: ReturnType<typeof vi.fn>
-  let mockListen: ReturnType<typeof vi.fn>
   let mockConfigService: ConfigManagerDeps['configService']
 
   beforeEach(async () => {
     vi.clearAllMocks()
 
     const { invoke } = await import('@tauri-apps/api/core')
-    const { listen } = await import('@tauri-apps/api/event')
     mockInvoke = invoke as ReturnType<typeof vi.fn>
-    mockListen = listen as ReturnType<typeof vi.fn>
 
     mockUnlisten = vi.fn()
-    mockListen.mockResolvedValue(mockUnlisten)
 
     mockConfigService = {
       initDefaults: vi.fn().mockResolvedValue(undefined),
@@ -127,6 +123,9 @@ describe('configManager', () => {
       getConfigContent: vi.fn().mockResolvedValue('notes_directory = "/test"'),
       saveConfigContent: vi.fn().mockResolvedValue(undefined),
       refreshCache: vi.fn().mockResolvedValue(undefined),
+      // The manager now subscribes through the service rather than `listen`
+      // directly, so the mock supplies the subscription too.
+      onConfigUpdated: vi.fn().mockResolvedValue(mockUnlisten),
     }
 
     manager = createConfigManager({ configService: mockConfigService })
@@ -169,8 +168,7 @@ describe('configManager', () => {
       expect(manager.isThemeInitialized).toBe(true)
       expect(manager.isLoading).toBe(false)
       expect(manager.error).toBe(null)
-      expect(mockListen).toHaveBeenCalledWith(
-        'config-updated',
+      expect(mockConfigService.onConfigUpdated).toHaveBeenCalledWith(
         expect.any(Function)
       )
     })
@@ -213,14 +211,14 @@ describe('configManager', () => {
 
   describe('config updates', () => {
     it('should handle config-updated events', async () => {
-      let configChangeHandler: (event: { payload: unknown }) => void
+      let configChangeHandler: (config: unknown) => void
 
-      mockListen.mockImplementation((eventName, handler) => {
-        if (eventName === 'config-updated') {
-          configChangeHandler = handler
+      vi.mocked(mockConfigService.onConfigUpdated).mockImplementation(
+        (handler) => {
+          configChangeHandler = handler as (config: unknown) => void
+          return Promise.resolve(mockUnlisten)
         }
-        return Promise.resolve(mockUnlisten)
-      })
+      )
 
       await manager.initialize()
 
@@ -249,7 +247,7 @@ describe('configManager', () => {
         preferences: { max_search_results: 50 },
       }
 
-      configChangeHandler!({ payload: newConfig })
+      configChangeHandler!(newConfig)
 
       expect(manager.notesDirectory).toBe('/new/path')
       expect(manager.preferences.max_search_results).toBe(50)

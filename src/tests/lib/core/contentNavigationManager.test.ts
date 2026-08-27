@@ -17,6 +17,11 @@ describe('ContentNavigationManager', () => {
       searchInput: string
       clearSearch(): void
     }
+    linkOpener: {
+      openPath: ReturnType<typeof vi.fn>
+      openUrl: ReturnType<typeof vi.fn>
+    }
+    notifyError: ReturnType<typeof vi.fn>
   }
   let navigationManager: ReturnType<typeof createContentNavigationManager>
 
@@ -73,6 +78,11 @@ describe('ContentNavigationManager', () => {
         searchInput: '',
         clearSearch: vi.fn(),
       },
+      linkOpener: {
+        openPath: vi.fn().mockResolvedValue(undefined),
+        openUrl: vi.fn().mockResolvedValue(undefined),
+      },
+      notifyError: vi.fn(),
     }
 
     navigationManager = createContentNavigationManager(mockDeps)
@@ -292,6 +302,60 @@ describe('ContentNavigationManager', () => {
 
       expect(result).toBe('focus_search')
       expect(mockDeps.searchManager.clearSearch).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('following links', () => {
+    /** Puts the manager into link-navigation mode on a single link. */
+    function navigateToLink(href: string): void {
+      mockNoteContentElement.innerHTML = `<p><a href="${href}">link</a></p>`
+      navigationManager.navigateLinkNext()
+    }
+
+    it('opens an http URL through the injected opener', () => {
+      navigateToLink('https://example.com/page')
+
+      navigationManager.openCurrentLink()
+
+      expect(mockDeps.linkOpener.openUrl).toHaveBeenCalledWith(
+        'https://example.com/page'
+      )
+      expect(mockDeps.linkOpener.openPath).not.toHaveBeenCalled()
+    })
+
+    it('opens a file path through the injected opener', () => {
+      navigateToLink('/home/user/notes/other.md')
+
+      navigationManager.openCurrentLink()
+
+      expect(mockDeps.linkOpener.openPath).toHaveBeenCalledWith(
+        '/home/user/notes/other.md'
+      )
+      expect(mockDeps.linkOpener.openUrl).not.toHaveBeenCalled()
+    })
+
+    it('reports a link with no destination instead of opening anything', () => {
+      // Only an empty `href` reaches this branch — the link collector selects
+      // `a[href]`, so an anchor without the attribute is never navigable.
+      navigateToLink('')
+
+      navigationManager.openCurrentLink()
+
+      expect(mockDeps.notifyError).toHaveBeenCalledWith('Link has no URL')
+      expect(mockDeps.linkOpener.openUrl).not.toHaveBeenCalled()
+      expect(mockDeps.linkOpener.openPath).not.toHaveBeenCalled()
+    })
+
+    it('reports a failure to open rather than throwing', async () => {
+      mockDeps.linkOpener.openUrl.mockRejectedValue(new Error('no handler'))
+      navigateToLink('https://example.com/page')
+
+      navigationManager.openCurrentLink()
+      await vi.waitFor(() =>
+        expect(mockDeps.notifyError).toHaveBeenCalledWith(
+          'Failed to open link: https://example.com/page'
+        )
+      )
     })
   })
 })

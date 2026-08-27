@@ -26,9 +26,22 @@ interface NavigationState {
   linkElement: Element | null
 }
 
+/**
+ * Opening a path or a URL is a platform capability, not navigation logic.
+ * Injecting it keeps `core/` free of direct Tauri imports and lets tests
+ * observe what would have been opened.
+ */
+export interface LinkOpener {
+  openPath(path: string): Promise<void>
+  openUrl(url: string): Promise<void>
+}
+
 interface NavigationDeps {
   focusManager: Pick<FocusManager, 'noteContentElement'>
   searchManager: Pick<SearchManager, 'query' | 'searchInput' | 'clearSearch'>
+  linkOpener: LinkOpener
+  /** Surfaces a link failure to the user. */
+  notifyError(message: string): void
 }
 
 export type EscapeAction =
@@ -475,9 +488,7 @@ export function createContentNavigationManager(
     const href = state.linkElement.getAttribute('href')
 
     if (!href) {
-      import('../utils/notification').then(({ notification }) => {
-        notification.error('Link has no URL')
-      })
+      showErrorNotification('Link has no URL')
       return null
     }
 
@@ -549,17 +560,13 @@ export function createContentNavigationManager(
   }
 
   function showErrorNotification(message: string): void {
-    import('../utils/notification').then(({ notification }) => {
-      notification.error(message)
-    })
+    deps.notifyError(message)
   }
 
   function handleFilePathOpening(href: string): void {
-    import('@tauri-apps/plugin-opener').then(({ openPath }) => {
-      openPath(href).catch((error) => {
-        console.error('Failed to open file:', error)
-        showErrorNotification(`Failed to open file: ${href}`)
-      })
+    deps.linkOpener.openPath(href).catch((error) => {
+      console.error('Failed to open file:', error)
+      showErrorNotification(`Failed to open file: ${href}`)
     })
   }
 
@@ -583,11 +590,9 @@ export function createContentNavigationManager(
   }
 
   function openValidUrl(href: string): void {
-    import('@tauri-apps/plugin-opener').then(({ openUrl }) => {
-      openUrl(href).catch((error) => {
-        console.error('Failed to open URL:', error)
-        showErrorNotification(`Failed to open link: ${href}`)
-      })
+    deps.linkOpener.openUrl(href).catch((error) => {
+      console.error('Failed to open URL:', error)
+      showErrorNotification(`Failed to open link: ${href}`)
     })
   }
 
