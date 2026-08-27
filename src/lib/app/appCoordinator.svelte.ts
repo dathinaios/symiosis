@@ -1,10 +1,9 @@
 /**
  * App Layer - Application Coordinator
- * Central coordinator for app-wide state, actions, and effects.
+ * Composition root: constructs the managers, derives the cross-manager state
+ * they cannot own individually (the selected note), and wires the command
+ * surface, the keyboard handler and the lifecycle onto them.
  */
-
-/** Delay in ms before navigating to header after exiting edit mode */
-const HEADER_NAVIGATION_DELAY_MS = 100
 
 /** Delay in ms before showing hints after settings close on first run */
 const FIRST_RUN_HINTS_DELAY_MS = 300
@@ -23,36 +22,14 @@ import { createContentLoadingManager } from '../core/contentLoadingManager.svelt
 import { noteService } from '../services/noteService.svelte'
 import { configService } from '../services/configService.svelte'
 import { versionService } from '../services/versionService.svelte'
-import { createNoteActions } from './actions/note.svelte'
-import { createSearchActions } from './actions/search.svelte'
-import { createSettingsActions } from './actions/settings.svelte'
-import { createKeyboardActions } from './actions/keyboard.svelte'
+import { createCommands, type Commands } from './commands.svelte'
+import { createKeyboardHandler } from './keyboard.svelte'
 import { setupAppEffects } from './effects/app.svelte'
 import { createAppLifecycle } from './lifecycle.svelte'
 import type { NoteMetadata } from '../types/note'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface AppCoordinatorDeps {}
-
-export interface AppState {
-  readonly query: string
-  readonly isLoading: boolean
-  readonly filteredNotes: NoteMetadata[]
-  readonly selectedNote: string | null
-}
-
-export interface AppActions {
-  loadNoteContent: (note: string) => Promise<void>
-  deleteNote: () => Promise<void>
-  createNote: (noteName?: string) => Promise<void>
-  renameNote: (newName?: string) => Promise<void>
-  saveNote: () => Promise<void>
-  saveAndExitNote: () => Promise<void>
-  enterEditMode: () => Promise<void>
-  exitEditMode: () => void
-  refreshCacheAndUI: () => Promise<void>
-  saveConfigAndRefresh: () => Promise<{ success: boolean; error?: string }>
-}
 
 export interface AppManagers {
   searchManager: ReturnType<
@@ -91,16 +68,15 @@ export interface AppManagers {
 }
 
 export interface AppCoordinator {
-  readonly query: string
-  readonly isLoading: boolean
-  readonly filteredNotes: NoteMetadata[]
+  /**
+   * The note the list has selected. Derived across `searchManager` and
+   * `focusManager`, so neither can own it — the only app state that lives here.
+   */
   readonly selectedNote: string | null
   readonly keyboardActions: (event: KeyboardEvent) => Promise<void>
   readonly managers: AppManagers
-  readonly state: AppState
-  readonly actions: AppActions
+  readonly commands: Commands
   setupReactiveEffects(): () => void
-  updateFilteredNotes(notes: NoteMetadata[]): void
   initialize(): Promise<() => void>
   handleSettingsClose(): void
 }
@@ -142,12 +118,8 @@ export function createAppCoordinator(
     contentNavigationManager,
   })
 
-  const isLoading = $derived(searchManager.isLoading)
-  const filteredNotes = $derived(searchManager.filteredNotes)
-  const query = $derived(searchManager.searchInput)
-
   const selectedNote = $derived.by(() => {
-    const notes = filteredNotes
+    const notes = searchManager.filteredNotes
     let index = focusManager.selectedIndex
 
     if (notes.length === 0) {
@@ -187,37 +159,40 @@ export function createAppCoordinator(
 
   let isFirstRun = false
 
-  const noteActions = createNoteActions({
+  const commands = createCommands({
     noteService,
     searchManager,
-    dialogManager,
     focusManager,
     editorManager,
     contentManager,
-  })
-
-  const searchActions = createSearchActions({
-    searchManager,
-    contentManager,
-    focusManager,
-    editorManager,
     contentNavigationManager,
+    contentLoadingManager,
+    dialogManager,
+    configManager,
+    versionExplorerManager,
+    recentlyDeletedManager,
+    getSelectedNote: () => selectedNote,
   })
 
-  const settingsActions = createSettingsActions({
+  function isAnyDialogOpen(): boolean {
+    return (
+      dialogManager.showCreateDialog ||
+      dialogManager.showRenameDialog ||
+      dialogManager.showDeleteDialog ||
+      dialogManager.showUnsavedChangesDialog ||
+      versionExplorerManager.isVisible ||
+      recentlyDeletedManager.isVisible
+    )
+  }
+
+  const keyboard = createKeyboardHandler({
+    commands,
     configManager,
     focusManager,
+    editorManager,
+    searchManager,
+    isAnyDialogOpen,
   })
-
-  function exitEditMode(): void {
-    const exitHeaderText = editorManager.exitEditMode()
-    if (exitHeaderText) {
-      setTimeout(() => {
-        contentNavigationManager.navigateToHeader(exitHeaderText)
-      }, HEADER_NAVIGATION_DELAY_MS)
-    }
-    focusManager.focusSearch()
-  }
 
   function handleSettingsClose(): void {
     configManager.closePane()
@@ -239,14 +214,6 @@ export function createAppCoordinator(
     }
   }
 
-  async function saveAndExitNote(): Promise<void> {
-    await noteActions.saveNote()
-    exitEditMode()
-    // An empty search shows notes in order
-    // of most recent and we just saved it.
-    focusManager.setSelectedIndex(0)
-  }
-
   // Cross-manager wiring: a completed search selects and loads its first hit.
   searchManager.setSearchCompleteCallback(async (notes: NoteMetadata[]) => {
     if (notes.length > 0) {
@@ -263,44 +230,9 @@ export function createAppCoordinator(
     focusManager,
     progressManager,
     contentLoadingManager,
-    openSettingsPane: () => settingsActions.openSettingsPane(),
+    openSettingsPane: () => commands.openSettings(),
     onFirstRunDetected: () => {
       isFirstRun = true
-    },
-  })
-
-  async function saveConfigAndRefresh(): Promise<{
-    success: boolean
-    error?: string
-  }> {
-    const result = await configManager.saveConfig()
-
-    if (result.success) {
-      await searchManager.executeSearch('')
-      focusManager.focusSearch()
-    }
-
-    return result
-  }
-
-  const keyboardActions = createKeyboardActions({
-    focusManager,
-    contentNavigationManager,
-    configManager,
-    searchManager,
-    contentManager,
-    dialogManager,
-    versionExplorerManager,
-    recentlyDeletedManager,
-    editorManager,
-    noteActions,
-    settingsActions,
-    noteService,
-    appCoordinator: {
-      loadNoteContent: contentLoadingManager.loadNoteContent,
-      exitEditMode,
-      saveAndExitNote,
-      refreshCacheAndUI: contentLoadingManager.refreshCacheAndUI,
     },
   })
 
@@ -322,43 +254,13 @@ export function createAppCoordinator(
   return {
     setupReactiveEffects,
     handleSettingsClose,
+    commands,
 
-    get query(): string {
-      return query
-    },
-    get isLoading(): boolean {
-      return isLoading
-    },
-    get filteredNotes(): NoteMetadata[] {
-      return filteredNotes
-    },
     get selectedNote(): string | null {
       return selectedNote
     },
 
-    updateFilteredNotes: searchActions.updateFilteredNotes,
-
-    get keyboardActions() {
-      return keyboardActions.createKeyboardHandler(() => ({
-        isSearchInputFocused: focusManager.isSearchInputFocused,
-        isEditMode: editorManager.isEditMode,
-        isNoteContentFocused: focusManager.isNoteContentFocused,
-        filteredNotes: filteredNotes,
-        selectedNote: selectedNote,
-        noteContentElement: focusManager.noteContentElement,
-        hideHighlights: contentNavigationManager.hideHighlights,
-        isEditorDirty: editorManager.isDirty,
-        query: query,
-        isSettingsOpen: configManager.isVisible,
-        isAnyDialogOpen:
-          dialogManager.showCreateDialog ||
-          dialogManager.showRenameDialog ||
-          dialogManager.showDeleteDialog ||
-          dialogManager.showUnsavedChangesDialog ||
-          versionExplorerManager.isVisible ||
-          recentlyDeletedManager.isVisible,
-      }))
-    },
+    keyboardActions: keyboard.handleKeydown,
 
     get managers() {
       return {
@@ -373,42 +275,6 @@ export function createAppCoordinator(
         versionExplorerManager,
         recentlyDeletedManager,
         contentLoadingManager,
-      }
-    },
-
-    get state() {
-      return {
-        get query() {
-          return query
-        },
-        get isLoading() {
-          return isLoading
-        },
-        get filteredNotes() {
-          return filteredNotes
-        },
-        get selectedNote() {
-          return selectedNote
-        },
-      }
-    },
-
-    get actions() {
-      return {
-        loadNoteContent: contentLoadingManager.loadNoteContent,
-        deleteNote: () => noteActions.deleteNote(selectedNote),
-        createNote: noteActions.createNote,
-        renameNote: (newName?: string) =>
-          noteActions.renameNote(selectedNote, newName),
-        saveNote: () => noteActions.saveNote(),
-        saveAndExitNote,
-        enterEditMode: () =>
-          selectedNote
-            ? noteActions.enterEditMode(selectedNote)
-            : Promise.resolve(),
-        exitEditMode,
-        refreshCacheAndUI: contentLoadingManager.refreshCacheAndUI,
-        saveConfigAndRefresh,
       }
     },
 

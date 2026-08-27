@@ -6,17 +6,17 @@ Handles note selection state and integrates with keyboard navigation.
 
 <script lang="ts">
   import { getContext } from 'svelte'
-  import type {
-    AppManagers,
-    AppState,
-    AppActions,
-  } from '../app/appCoordinator.svelte'
+  import type { AppManagers } from '../app/appCoordinator.svelte'
+  import type { Commands } from '../app/commands.svelte'
   import { getHighlightedTitle } from '../utils/contentHighlighting.svelte'
 
-  const { focusManager, contentNavigationManager, configManager } =
-    getContext<AppManagers>('managers')
-  const appState = getContext<AppState>('state')
-  const actions = getContext<AppActions>('actions')
+  const {
+    searchManager,
+    focusManager,
+    contentNavigationManager,
+    configManager,
+  } = getContext<AppManagers>('managers')
+  const commands = getContext<Commands>('commands')
   const create_note_key = configManager.shortcuts.create_note
 
   let noteListElement = $state<HTMLElement | undefined>(undefined)
@@ -30,27 +30,27 @@ Handles note selection state and integrates with keyboard navigation.
 
 <div class="notes-list-container">
   <div class="notes-list">
-    {#if appState.isLoading && appState.filteredNotes.length === 0}
+    {#if searchManager.isLoading && searchManager.filteredNotes.length === 0}
       <div class="loading">Loading...</div>
-    {:else if appState.filteredNotes.length === 0}
+    {:else if searchManager.filteredNotes.length === 0}
       <div class="no-notes">Press {create_note_key} to create the note.</div>
     {:else}
       <ul bind:this={noteListElement} tabindex="-1">
-        {#each appState.filteredNotes as note, index (note.filename)}
+        {#each searchManager.filteredNotes as note, index (note.filename)}
           <li>
             <button
               class:selected={index === focusManager.selectedIndex}
               tabindex="-1"
               onclick={() => {
                 focusManager.setSelectedIndex(index)
-                actions.loadNoteContent(note.filename)
+                commands.loadNoteContent(note.filename)
               }}
             >
               <div class="note-title">
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 {@html getHighlightedTitle(
                   note.filename,
-                  appState.query,
+                  searchManager.searchInput,
                   contentNavigationManager.hideHighlights
                 )}
               </div>

@@ -29,8 +29,7 @@ Composes all UI components and provides keyboard event handling for the entire a
     appCoordinator,
   })
 
-  setContext('state', appCoordinator.state)
-  setContext('actions', appCoordinator.actions)
+  setContext('commands', appCoordinator.commands)
 
   const {
     dialogManager,
@@ -39,8 +38,7 @@ Composes all UI components and provides keyboard event handling for the entire a
     recentlyDeletedManager,
     configManager,
   } = appCoordinator.managers
-  const appState = appCoordinator.state
-  const actions = appCoordinator.actions
+  const commands = appCoordinator.commands
 
   const handleKeydown = appCoordinator.keyboardActions
 
@@ -88,12 +86,12 @@ Composes all UI components and provides keyboard event handling for the entire a
 
     <DeleteDialog
       show={dialogManager.showDeleteDialog}
-      noteName={appState.selectedNote || ''}
+      noteName={appCoordinator.selectedNote || ''}
       deleteKeyPressCount={dialogManager.deleteKeyPressCount}
-      onConfirm={actions.deleteNote}
+      onConfirm={commands.deleteNote}
       onCancel={dialogManager.closeDeleteDialog}
       onKeyPress={() =>
-        dialogManager.handleDeleteKeyPress(() => actions.deleteNote())}
+        dialogManager.handleDeleteKeyPress(() => commands.deleteNote())}
     />
 
     <InputDialog
@@ -104,7 +102,7 @@ Composes all UI components and provides keyboard event handling for the entire a
       confirmText="Create"
       cancelText="Cancel"
       autoSelect={true}
-      onConfirm={(value) => actions.createNote(value)}
+      onConfirm={(value) => commands.createNote(value)}
       onCancel={dialogManager.closeCreateDialog}
       onInput={(value) => (dialogManager.newNoteName = value)}
     />
@@ -117,7 +115,7 @@ Composes all UI components and provides keyboard event handling for the entire a
       confirmText="Rename"
       cancelText="Cancel"
       autoSelect={true}
-      onConfirm={(value) => actions.renameNote(value)}
+      onConfirm={(value) => commands.renameNote(value)}
       onCancel={dialogManager.closeRenameDialog}
       onInput={(value) => (dialogManager.newNoteNameForRename = value)}
     />
@@ -129,8 +127,9 @@ Composes all UI components and provides keyboard event handling for the entire a
       confirmText="Save and Exit"
       cancelText="Discard Changes"
       variant="default"
-      onConfirm={() => dialogManager.handleSaveAndExit(actions.saveAndExitNote)}
-      onCancel={() => dialogManager.handleDiscardAndExit(actions.exitEditMode)}
+      onConfirm={() =>
+        dialogManager.handleSaveAndExit(commands.saveAndExitNote)}
+      onCancel={() => dialogManager.handleDiscardAndExit(commands.exitEditMode)}
     />
 
     <ProgressOverlay

@@ -11,14 +11,20 @@ Shows highlighted content or renders the CodeMirror editor.
 
   import type {
     AppManagers,
-    AppState,
-    AppActions,
+    createAppCoordinator,
   } from '../app/appCoordinator.svelte'
+  import type { Commands } from '../app/commands.svelte'
 
-  const { focusManager, contentManager, editorManager, dialogManager } =
-    getContext<AppManagers>('managers')
-  const appState = getContext<AppState>('state')
-  const actions = getContext<AppActions>('actions')
+  const {
+    focusManager,
+    contentManager,
+    editorManager,
+    dialogManager,
+    appCoordinator,
+  } = getContext<
+    AppManagers & { appCoordinator: ReturnType<typeof createAppCoordinator> }
+  >('managers')
+  const commands = getContext<Commands>('commands')
 
   // Theme initialization is now handled by configManager
   let noteContentElement = $state<HTMLElement | undefined>(undefined)
@@ -52,7 +58,7 @@ Shows highlighted content or renders the CodeMirror editor.
 </script>
 
 <div class="note-preview">
-  {#if appState.selectedNote}
+  {#if appCoordinator.selectedNote}
     {#if editorManager.isEditMode}
       <!--
         Neither `value` nor the dirty flag is bound: `editorManager` exposes both
@@ -61,11 +67,11 @@ Shows highlighted content or renders the CodeMirror editor.
       -->
       <Editor
         value={editorManager.editContent}
-        filename={appState.selectedNote}
+        filename={appCoordinator.selectedNote}
         nearestHeaderText={editorManager.nearestHeaderText}
         onContentChange={editorManager.updateContent}
-        onSave={actions.saveAndExitNote}
-        onExit={actions.exitEditMode}
+        onSave={commands.saveAndExitNote}
+        onExit={commands.exitEditMode}
         onRequestExit={dialogManager.openUnsavedChangesDialog}
         onExitHeaderCapture={editorManager.setExitHeaderText}
       />

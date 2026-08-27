@@ -7,7 +7,8 @@ Uses Editor component for syntax highlighting of configuration files.
 <script lang="ts">
   import Editor from './Editor.svelte'
   import { getContext } from 'svelte'
-  import type { AppActions, AppManagers } from '../app/appCoordinator.svelte'
+  import type { AppManagers } from '../app/appCoordinator.svelte'
+  import type { Commands } from '../app/commands.svelte'
 
   interface Props {
     show: boolean
@@ -15,14 +16,14 @@ Uses Editor component for syntax highlighting of configuration files.
   }
 
   const { show, onClose }: Props = $props()
-  const actions = getContext<AppActions>('actions')
+  const commands = getContext<Commands>('commands')
   const managers = getContext<AppManagers>('managers')
 
   let dialogElement = $state<HTMLElement | undefined>(undefined)
   let savedCursorPosition = $state<[number, number] | null>(null)
 
   async function handleSave(): Promise<void> {
-    await actions.saveConfigAndRefresh()
+    await commands.saveConfigAndRefresh()
   }
 
   function handleCancel(): void {
@@ -41,7 +42,7 @@ Uses Editor component for syntax highlighting of configuration files.
   }
 
   async function handleSaveAndClose(): Promise<void> {
-    const result = await actions.saveConfigAndRefresh()
+    const result = await commands.saveConfigAndRefresh()
     if (result.success) {
       onClose()
     }
