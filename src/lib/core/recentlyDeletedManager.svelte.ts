@@ -15,7 +15,7 @@ interface RecentlyDeletedState {
 }
 
 export interface RecentlyDeletedManagerDeps {
-  focusSearch: () => void
+  restoreFocus: () => void
   refreshCacheAndUI: () => Promise<void>
   versionService: {
     getDeletedFiles(): Promise<{
@@ -67,7 +67,7 @@ export function createRecentlyDeletedManager(
     state.files = []
     state.selectedIndex = 0
     state.error = null
-    deps.focusSearch()
+    deps.restoreFocus()
   }
 
   async function loadDeletedFiles(): Promise<void> {

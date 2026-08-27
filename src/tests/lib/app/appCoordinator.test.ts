@@ -58,7 +58,8 @@ const { createAppCoordinator } = await import(
   '../../../lib/app/appCoordinator.svelte'
 )
 const appCoordinator = createAppCoordinator({})
-const { searchManager, focusManager } = appCoordinator.managers
+const { searchManager, focusManager, editorManager, recentlyDeletedManager } =
+  appCoordinator.managers
 
 describe('appCoordinator', () => {
   beforeEach(() => {
@@ -75,6 +76,7 @@ describe('appCoordinator', () => {
     searchManager.searchInput = ''
     searchManager.setFilteredNotes([])
     focusManager.setSelectedIndex(-1)
+    if (editorManager.isEditMode) editorManager.exitEditMode()
   })
 
   describe('selectedNote', () => {
@@ -201,6 +203,36 @@ describe('appCoordinator', () => {
       expect(mockNoteService.search).not.toHaveBeenCalled()
 
       cleanup()
+    })
+  })
+
+  describe('restoring focus when a dialog closes', () => {
+    it('hands focus back to the editor when one is open', async () => {
+      mockNoteService.getRawContent.mockResolvedValue('# note')
+      const focusEditor = vi.spyOn(editorManager, 'focusEditor')
+      const focusSearch = vi.spyOn(focusManager, 'focusSearch')
+
+      await editorManager.enterEditMode('note.md')
+      expect(editorManager.isEditMode).toBe(true)
+
+      recentlyDeletedManager.closeDialog()
+
+      // Focusing search here would leave the editor open while `activeContext()`
+      // reports `searchInput`, so Escape would stop reaching the editor.
+      expect(focusEditor).toHaveBeenCalled()
+      expect(focusSearch).not.toHaveBeenCalled()
+    })
+
+    it('focuses search when no editor is open', () => {
+      const focusEditor = vi.spyOn(editorManager, 'focusEditor')
+      const focusSearch = vi.spyOn(focusManager, 'focusSearch')
+
+      expect(editorManager.isEditMode).toBe(false)
+
+      recentlyDeletedManager.closeDialog()
+
+      expect(focusSearch).toHaveBeenCalled()
+      expect(focusEditor).not.toHaveBeenCalled()
     })
   })
 })

@@ -12,7 +12,7 @@ import type { DeletedFile } from '../../../lib/types/note'
 import { resetAllMocks } from '../../test-utils'
 
 const mockDeps = {
-  focusSearch: vi.fn(),
+  restoreFocus: vi.fn(),
   refreshCacheAndUI: vi.fn(),
   versionService: {
     getDeletedFiles: vi.fn(),
@@ -124,7 +124,7 @@ describe('recentlyDeletedManager (factory-based - TDD)', () => {
       expect(manager.files).toEqual([])
       expect(manager.selectedIndex).toBe(0)
       expect(manager.error).toBeNull()
-      expect(mockDeps.focusSearch).toHaveBeenCalled()
+      expect(mockDeps.restoreFocus).toHaveBeenCalled()
     })
   })
 

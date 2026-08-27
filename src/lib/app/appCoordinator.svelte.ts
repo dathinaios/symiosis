@@ -151,14 +151,25 @@ export function createAppCoordinator(
     getSelectedNote: () => selectedNote,
   })
 
+  // Closing a dialog opened from the editor must hand focus back to the editor.
+  // Focusing search instead leaves the editor open while `activeContext()`
+  // reports `searchInput`, so Escape no longer reaches the editor.
+  function restoreFocus(): void {
+    if (editorManager.isEditMode) {
+      editorManager.focusEditor()
+    } else {
+      focusManager.focusSearch()
+    }
+  }
+
   const versionExplorerManager = createVersionExplorerManager({
-    focusSearch: () => focusManager.focusSearch(),
+    restoreFocus,
     versionService,
     loadNoteContent: contentLoadingManager.loadNoteContent,
   })
 
   const recentlyDeletedManager = createRecentlyDeletedManager({
-    focusSearch: () => focusManager.focusSearch(),
+    restoreFocus,
     refreshCacheAndUI: contentLoadingManager.refreshCacheAndUI,
     versionService,
   })

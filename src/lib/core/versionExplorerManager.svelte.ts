@@ -18,7 +18,7 @@ interface VersionExplorerState {
 }
 
 export interface VersionExplorerManagerDeps {
-  focusSearch: () => void
+  restoreFocus: () => void
   versionService: ReturnType<typeof createVersionService>
   loadNoteContent: (noteName: string) => Promise<void>
 }
@@ -68,7 +68,7 @@ export function createVersionExplorerManager(
     state.selectedVersionIndex = 0
     state.previewContent = ''
     state.error = null
-    deps.focusSearch()
+    deps.restoreFocus()
   }
 
   async function loadVersions(): Promise<void> {

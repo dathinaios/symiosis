@@ -45,6 +45,7 @@ export interface EditorManager {
   saveNote(): Promise<SaveResult>
   setExitHeaderText(headerText: string): void
   setEditorView(editorView: EditorView | null): void
+  focusEditor(): void
   captureExitPosition(
     onExitHeaderCapture?: ((headerText: string) => void) | null,
     onExitCursorCapture?: ((line: number, column: number) => void) | null
@@ -141,6 +142,10 @@ export function createEditorManager(deps: EditorManagerDeps): EditorManager {
 
   function setEditorView(editorView: EditorView | null): void {
     state.editorView = editorView
+  }
+
+  function focusEditor(): void {
+    state.editorView?.focus()
   }
 
   function findNearestHeaderAtCursor(): string {
@@ -273,6 +278,7 @@ export function createEditorManager(deps: EditorManagerDeps): EditorManager {
     saveNote,
     setExitHeaderText,
     setEditorView,
+    focusEditor,
     captureExitPosition,
   }
 }

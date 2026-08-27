@@ -24,7 +24,7 @@ const mockVersionService = {
 }
 
 const mockDeps: VersionExplorerManagerDeps = {
-  focusSearch: vi.fn(),
+  restoreFocus: vi.fn(),
   versionService: mockVersionService,
   loadNoteContent: vi.fn(),
 }
@@ -146,7 +146,7 @@ describe('versionExplorerManager (factory-based - TDD)', () => {
       expect(manager.selectedVersionIndex).toBe(0)
       expect(manager.previewContent).toBe('')
       expect(manager.error).toBeNull()
-      expect(mockDeps.focusSearch).toHaveBeenCalled()
+      expect(mockDeps.restoreFocus).toHaveBeenCalled()
     })
   })
 
