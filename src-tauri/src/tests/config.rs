@@ -4,7 +4,8 @@
 //! These tests access internal/private functions and test the actual production behavior.
 
 use crate::config::{
-    load_config, load_config_from_content, parse_shortcut, AppConfig, ShortcutsConfig,
+    load_config, load_config_from_content, load_config_with_first_run_info, parse_shortcut,
+    AppConfig, ShortcutsConfig,
 };
 use crate::tests::test_utils::TestConfigOverride;
 use crate::utilities::paths::{get_config_path, get_default_notes_dir};
@@ -663,4 +664,33 @@ ui_theme = "not-a-real-theme"
 
     assert!(err.contains("not-a-real-theme"), "{}", err);
     assert!(err.contains("gruvbox-dark"), "{}", err);
+}
+
+#[test]
+#[serial]
+fn test_first_run_creates_the_config_and_reports_itself() {
+    let _test_config = TestConfigOverride::new().expect("Failed to setup test config");
+
+    // The override writes a config; remove it to stand in for a fresh install.
+    let config_path = get_config_path();
+    std::fs::remove_file(&config_path).expect("test config should exist to be removed");
+    assert!(!config_path.exists());
+
+    // load_config() no longer writes a default file as a side effect — creation
+    // moved to an explicit ensure_config_file_exists() on this path. If that
+    // call were dropped, a fresh install would start with no config at all.
+    let (_config, was_first_run) = load_config_with_first_run_info();
+
+    assert!(was_first_run, "a missing config must report as a first run");
+    assert!(
+        config_path.exists(),
+        "first run must leave a config file behind at {}",
+        config_path.display()
+    );
+
+    let (_config, was_first_run_again) = load_config_with_first_run_info();
+    assert!(
+        !was_first_run_again,
+        "the second run must not report itself as a first run"
+    );
 }

@@ -3,7 +3,7 @@
 //! Tests for search functionality, FTS security, and performance.
 
 use crate::tests::test_utils::{
-    test_create_new_note, test_search_notes_hybrid, TestConfigOverride,
+    test_create_new_note, test_refresh_cache_sync, test_search_notes_hybrid, TestConfigOverride,
 };
 use serial_test::serial;
 use std::time::Instant;
@@ -313,4 +313,38 @@ fn test_candidate_limit_never_below_the_configured_result_count() {
     assert_eq!(candidate_limit(500), 500);
     assert_eq!(candidate_limit(2000), 2000);
     assert_eq!(candidate_limit(10_000), 10_000);
+}
+
+#[test]
+#[serial]
+fn test_content_search_is_case_insensitive_including_greek() {
+    let _test_config = TestConfigOverride::new().expect("Failed to setup test config");
+
+    let note = "greek-street.md";
+    let notes_dir = crate::config::get_config_notes_dir();
+    std::fs::write(
+        notes_dir.join(note),
+        "Some text\n\n\u{39F}\u{394}\u{39F}\u{3A3} \u{395}\u{3A1}\u{39C}\u{39F}\u{3A5}\n",
+    )
+    .expect("note body should be writable");
+    test_refresh_cache_sync().expect("index should pick the file up");
+
+    // `str::to_lowercase` maps a final sigma to `\u{3C2}` while the per-character
+    // mapping gives `\u{3C3}`, so lowercasing content one character at a time
+    // stops it matching a query that was lowercased as a whole.
+    for query in [
+        "\u{39F}\u{394}\u{39F}\u{3A3}",
+        "\u{3BF}\u{3B4}\u{3BF}\u{3C2}",
+        "\u{395}\u{3A1}\u{39C}\u{39F}\u{3A5}",
+        "text",
+    ] {
+        let results = test_search_notes_hybrid(query, 20)
+            .unwrap_or_else(|e| panic!("query {:?} errored: {}", query, e));
+        assert!(
+            results.iter().any(|f| f == note),
+            "query {:?} did not find the note: {:?}",
+            query,
+            results
+        );
+    }
 }

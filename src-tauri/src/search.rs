@@ -40,6 +40,9 @@ struct SearchCandidate {
 
 pub struct HybridSearcher {
     matcher: Matcher,
+    /// Reused across candidates so scoring does not allocate a lowercased copy
+    /// of every note body on every keystroke.
+    lowercase_buf: String,
 }
 
 /// How many rows FTS5 hands to the fuzzy ranker.
@@ -79,7 +82,10 @@ pub(crate) fn build_fts_pattern(sanitized_query: &str) -> String {
 impl HybridSearcher {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let matcher = Matcher::new(Config::DEFAULT);
-        Ok(Self { matcher })
+        Ok(Self {
+            matcher,
+            lowercase_buf: String::new(),
+        })
     }
 
     pub fn search(
@@ -222,14 +228,34 @@ impl HybridSearcher {
     }
 
     fn score_content_match(&mut self, content: &str, query_lower: &str) -> Option<u32> {
-        let content_lower = content.to_lowercase();
+        // `content.to_lowercase()` allocated a fresh copy of the whole note body
+        // for every candidate that missed on title, on every keystroke — on a
+        // 2000-note vault that is megabytes of churn per key press. The
+        // lowercasing itself is unchanged; only the allocation is reused.
+        // Taken out of `self` so `fuzzy_match` can still borrow mutably.
+        let mut buf = std::mem::take(&mut self.lowercase_buf);
+        buf.clear();
 
-        if content_lower.contains(query_lower) {
-            let count = content_lower.matches(query_lower).count() as u32;
+        if content.is_ascii() {
+            buf.push_str(content);
+            buf.make_ascii_lowercase();
+        } else {
+            // Unicode lowercasing is context-sensitive: `str::to_lowercase`
+            // maps a final Greek sigma to `ς` where the per-character mapping
+            // gives `σ`, so "ΟΔΟΣ" would stop matching itself. Non-ASCII bodies
+            // keep the allocating path rather than change what matches.
+            buf.push_str(&content.to_lowercase());
+        }
+
+        let score = if buf.contains(query_lower) {
+            let count = buf.matches(query_lower).count() as u32;
             Some(50 + count * 10)
         } else {
-            self.fuzzy_match(&content_lower, query_lower)
-        }
+            self.fuzzy_match(&buf, query_lower)
+        };
+
+        self.lowercase_buf = buf;
+        score
     }
 
     fn fuzzy_match(&mut self, text: &str, query: &str) -> Option<u32> {
