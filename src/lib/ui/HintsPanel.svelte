@@ -145,6 +145,10 @@ Keyboard shortcuts overlay panel for displaying current key bindings.
         { key: 'Esc', description: 'Close dialogs/panels' },
         { key: 'Ctrl+?', description: 'Show this help panel' },
         {
+          key: configManager.shortcuts.open_settings,
+          description: 'Open settings',
+        },
+        {
           key: configManager.shortcuts.version_explorer,
           description: 'Explore versions of note',
         },
