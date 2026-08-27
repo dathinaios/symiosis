@@ -577,12 +577,12 @@ fn handle_database_initialization_failure(
             );
         }
         return Err(recovery_error);
+    }
+
+    if is_new_db {
+        log_database_success("DATABASE_INIT", "New database created successfully!");
     } else {
-        if is_new_db {
-            log_database_success("DATABASE_INIT", "New database created successfully!");
-        } else {
-            log_database_success("DATABASE_RECOVERY", "Database successfully recovered!");
-        }
+        log_database_success("DATABASE_RECOVERY", "Database successfully recovered!");
     }
     Ok(())
 }
