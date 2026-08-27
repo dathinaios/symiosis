@@ -10,7 +10,6 @@ vi.mock('@tauri-apps/api/core', () => ({
 function renderNoteView() {
   const focusManager = {
     setNoteContentElement: vi.fn(),
-    setNoteContentFocused: vi.fn(),
   }
 
   const managers = {

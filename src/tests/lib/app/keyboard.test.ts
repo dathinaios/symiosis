@@ -100,7 +100,6 @@ interface MockState {
   isSettingsOpen: boolean
   isAnyDialogOpen: boolean
   isSearchInputFocused: boolean
-  isNoteContentFocused: boolean
   isEditMode: boolean
   filteredNotes: NoteMetadata[]
 }
@@ -118,7 +117,6 @@ describe('keyboard', () => {
       isSettingsOpen: false,
       isAnyDialogOpen: false,
       isSearchInputFocused: false,
-      isNoteContentFocused: false,
       isEditMode: false,
       filteredNotes: toMetadata(['note1.md', 'note2.md', 'note3.md']),
     }
@@ -134,9 +132,6 @@ describe('keyboard', () => {
       focusManager: {
         get isSearchInputFocused() {
           return state.isSearchInputFocused
-        },
-        get isNoteContentFocused() {
-          return state.isNoteContentFocused
         },
       },
       editorManager: {
@@ -192,7 +187,6 @@ describe('keyboard', () => {
       expect(Object.keys(mappings).sort()).toEqual([
         'default',
         'editMode',
-        'noteContent',
         'searchInput',
       ])
     })
@@ -220,15 +214,6 @@ describe('keyboard', () => {
       expect(editMode.Escape).toBe('smartExitEditMode')
       expect(editMode['Ctrl+s']).toBe('saveAndExitNote')
       expect(editMode['Meta+,']).toBe('openSettings')
-    })
-
-    it('maps the note-content context to its commands', () => {
-      const { noteContent } = keyboard.keyMappings()
-
-      expect(noteContent.Escape).toBe('focusSearch')
-      expect(noteContent['Ctrl+p']).toBe('navigatePrevious')
-      expect(noteContent['Ctrl+n']).toBe('navigateNext')
-      expect(noteContent['Ctrl+Shift+c']).toBe('copyCurrentSection')
     })
 
     it('maps the default context to its commands', () => {
@@ -294,23 +279,6 @@ describe('keyboard', () => {
 
       expect(await press('Escape')).toBe(true)
       expect(commands.smartExitEditMode).toHaveBeenCalled()
-    })
-
-    it('prefers edit mode over note content when both are true', async () => {
-      state.isEditMode = true
-      state.isNoteContentFocused = true
-
-      await press('Escape')
-
-      expect(commands.smartExitEditMode).toHaveBeenCalled()
-      expect(commands.focusSearch).not.toHaveBeenCalled()
-    })
-
-    it('dispatches from the note-content keymap when the note has focus', async () => {
-      state.isNoteContentFocused = true
-
-      expect(await press('Escape')).toBe(true)
-      expect(commands.focusSearch).toHaveBeenCalled()
     })
 
     it('falls back to the default keymap when notes are listed but nothing has focus', async () => {

@@ -39,7 +39,6 @@ describe('focusManager', () => {
 
     // Reset focus manager state
     focusManager.setSearchInputFocused(false)
-    focusManager.setNoteContentFocused(false)
     focusManager.setSearchElement(null)
     focusManager.setNoteContentElement(null)
     focusManager.setNoteListElement(null)
@@ -50,7 +49,6 @@ describe('focusManager', () => {
   describe('state getters', () => {
     it('should initialize with default state', () => {
       expect(focusManager.isSearchInputFocused).toBe(false)
-      expect(focusManager.isNoteContentFocused).toBe(false)
       expect(focusManager.searchElement).toBeNull()
       expect(focusManager.noteContentElement).toBeNull()
       expect(focusManager.noteListElement).toBeNull()
@@ -64,14 +62,6 @@ describe('focusManager', () => {
 
       focusManager.setSearchInputFocused(false)
       expect(focusManager.isSearchInputFocused).toBe(false)
-    })
-
-    it('should update note content focus state', () => {
-      focusManager.setNoteContentFocused(true)
-      expect(focusManager.isNoteContentFocused).toBe(true)
-
-      focusManager.setNoteContentFocused(false)
-      expect(focusManager.isNoteContentFocused).toBe(false)
     })
   })
 

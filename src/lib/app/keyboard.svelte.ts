@@ -27,15 +27,12 @@ export type KeyCommand = {
 export type KeyMappings = Record<string, KeyCommand>
 
 /** The four contexts, in the order they are tested. */
-export type KeyContext = 'searchInput' | 'editMode' | 'noteContent' | 'default'
+export type KeyContext = 'searchInput' | 'editMode' | 'default'
 
 export interface KeyboardDeps {
   commands: Commands
   configManager: Pick<ConfigManager, 'shortcuts' | 'isVisible'>
-  focusManager: Pick<
-    FocusManager,
-    'isSearchInputFocused' | 'isNoteContentFocused'
-  >
+  focusManager: Pick<FocusManager, 'isSearchInputFocused'>
   editorManager: Pick<EditorManager, 'isEditMode'>
   searchManager: Pick<SearchManager, 'filteredNotes'>
   /** True while any modal owns the keyboard. */
@@ -99,21 +96,6 @@ function editModeMappings(shortcuts: ShortcutsConfig): KeyMappings {
   }
 }
 
-function noteContentMappings(shortcuts: ShortcutsConfig): KeyMappings {
-  return {
-    Escape: 'focusSearch',
-    [shortcuts.navigate_previous]: 'navigatePrevious',
-    [shortcuts.navigate_next]: 'navigateNext',
-    [shortcuts.navigate_code_previous]: 'navigateCodePrevious',
-    [shortcuts.navigate_code_next]: 'navigateCodeNext',
-    [shortcuts.navigate_link_previous]: 'navigateLinkPrevious',
-    [shortcuts.navigate_link_next]: 'navigateLinkNext',
-    [shortcuts.copy_current_section]: 'copyCurrentSection',
-    [shortcuts.version_explorer]: 'openVersionExplorer',
-    [shortcuts.recently_deleted]: 'openRecentlyDeleted',
-  }
-}
-
 function defaultMappings(shortcuts: ShortcutsConfig): KeyMappings {
   return {
     ArrowUp: 'moveUp',
@@ -134,7 +116,6 @@ export function createKeyboardHandler(deps: KeyboardDeps): KeyboardHandler {
     return {
       searchInput: searchInputMappings(shortcuts),
       editMode: editModeMappings(shortcuts),
-      noteContent: noteContentMappings(shortcuts),
       default: defaultMappings(shortcuts),
     }
   }
@@ -144,7 +125,6 @@ export function createKeyboardHandler(deps: KeyboardDeps): KeyboardHandler {
     if (deps.configManager.isVisible || deps.isAnyDialogOpen()) return null
     if (deps.focusManager.isSearchInputFocused) return 'searchInput'
     if (deps.editorManager.isEditMode) return 'editMode'
-    if (deps.focusManager.isNoteContentFocused) return 'noteContent'
     if (deps.searchManager.filteredNotes.length > 0) return 'default'
     return null
   }

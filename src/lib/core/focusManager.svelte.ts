@@ -6,7 +6,6 @@
 
 interface FocusState {
   isSearchInputFocused: boolean
-  isNoteContentFocused: boolean
   selectedIndex: number
   searchElement: HTMLInputElement | null
   noteContentElement: HTMLElement | null
@@ -15,13 +14,11 @@ interface FocusState {
 
 export interface FocusManager {
   readonly isSearchInputFocused: boolean
-  readonly isNoteContentFocused: boolean
   readonly selectedIndex: number
   readonly searchElement: HTMLInputElement | null
   readonly noteContentElement: HTMLElement | null
   readonly noteListElement: HTMLElement | null
   setSearchInputFocused(value: boolean): void
-  setNoteContentFocused(value: boolean): void
   setSelectedIndex(index: number): void
   setSearchElement(element: HTMLInputElement | null): void
   setNoteContentElement(element: HTMLElement | null): void
@@ -35,7 +32,6 @@ export interface FocusManager {
 export function createFocusManager(): FocusManager {
   const state = $state<FocusState>({
     isSearchInputFocused: false,
-    isNoteContentFocused: false,
     selectedIndex: -1,
     searchElement: null,
     noteContentElement: null,
@@ -55,9 +51,6 @@ export function createFocusManager(): FocusManager {
     get isSearchInputFocused(): boolean {
       return state.isSearchInputFocused
     },
-    get isNoteContentFocused(): boolean {
-      return state.isNoteContentFocused
-    },
     get selectedIndex(): number {
       return state.selectedIndex
     },
@@ -73,9 +66,6 @@ export function createFocusManager(): FocusManager {
 
     setSearchInputFocused(value: boolean): void {
       state.isSearchInputFocused = value
-    },
-    setNoteContentFocused(value: boolean): void {
-      state.isNoteContentFocused = value
     },
     setSelectedIndex(index: number): void {
       state.selectedIndex = index
