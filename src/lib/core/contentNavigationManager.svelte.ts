@@ -1,5 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity'
 import { htmlToMarkdown, markdownToHtml } from '../utils/markdown'
+import type { FocusManager } from './focusManager.svelte'
+import type { SearchManager } from './searchManager.svelte'
 import {
   getContentBetweenHeaders,
   getFormattedText,
@@ -25,14 +27,8 @@ interface NavigationState {
 }
 
 interface NavigationDeps {
-  focusManager: {
-    readonly noteContentElement: HTMLElement | null
-  }
-  searchManager: {
-    readonly query: string
-    readonly searchInput: string
-    clearSearch(): void
-  }
+  focusManager: Pick<FocusManager, 'noteContentElement'>
+  searchManager: Pick<SearchManager, 'query' | 'searchInput' | 'clearSearch'>
 }
 
 export type EscapeAction =
