@@ -7,11 +7,13 @@ use crate::utilities::note_renderer::render_note;
 use crate::utilities::paths::get_database_path_for_notes_dir;
 use crate::utilities::paths::{get_config_path, get_default_notes_dir};
 use crate::utilities::validation::{validate_config, validate_note_name, validate_shortcut_format};
+use serial_test::serial;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 #[test]
+#[serial]
 fn test_concurrent_config_access() {
     // Test that multiple threads can safely access configuration
     let handles: Vec<_> = (0..5)
@@ -187,6 +189,7 @@ fn test_concurrent_note_name_validation() {
 }
 
 #[test]
+#[serial]
 fn test_concurrent_path_operations() {
     // Test that path-related functions are thread-safe
     let handles: Vec<_> = (0..10)
