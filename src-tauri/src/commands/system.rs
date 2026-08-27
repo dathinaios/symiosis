@@ -3,8 +3,7 @@ use crate::{
     database::{refresh_database_connection, with_db_mut},
     logging::log,
     services::database_service::{
-        init_db, load_all_notes_into_sqlite, load_all_notes_into_sqlite_with_progress,
-        recreate_database_with_progress,
+        init_db, load_all_notes_into_sqlite_with_progress, recreate_database_with_progress,
     },
 };
 use tauri::{AppHandle, Emitter};
@@ -79,7 +78,7 @@ async fn perform_cache_refresh(
 
     emit_cache_refresh_progress(app);
 
-    let result = execute_cache_refresh_task(app_state).await?;
+    let result = execute_cache_refresh_task(app, app_state).await?;
     handle_cache_refresh_result(app, app_state, result).await
 }
 
@@ -181,14 +180,19 @@ fn emit_cache_refresh_progress(app: &AppHandle) {
 }
 
 async fn execute_cache_refresh_task(
+    app: &AppHandle,
     app_state: &crate::core::state::AppState,
 ) -> Result<Result<(), crate::core::AppError>, crate::core::AppError> {
     let app_state_clone = app_state.clone();
+    let app_clone = app.clone();
 
     tokio::task::spawn_blocking(move || {
         with_db_mut(&app_state_clone, |conn| {
             init_db(conn)?;
-            load_all_notes_into_sqlite(&app_state_clone, conn).map_err(|e| e.into())
+            // Without the handle this reports nothing, which left a directory
+            // switch sitting on "Refreshing notes..." for the whole rebuild.
+            load_all_notes_into_sqlite_with_progress(&app_state_clone, conn, Some(&app_clone))
+                .map_err(|e| e.into())
         })
     })
     .await
