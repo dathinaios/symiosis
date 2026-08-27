@@ -267,3 +267,35 @@ fn test_search_finds_a_hyphenated_filename() {
         results
     );
 }
+
+#[test]
+#[serial]
+fn test_search_survives_every_prefix_typed_on_the_way() {
+    let _test_config = TestConfigOverride::new().expect("Failed to setup test config");
+
+    let note = "comprehensive-tips-to-databases.md";
+    test_create_new_note(note).expect("note should be created");
+
+    // Search runs on every keystroke, so each intermediate string is a real
+    // query — including the ones ending on a hyphen. Unquoted, those parsed as
+    // FTS5 operators and the whole query errored out.
+    //
+    // Failures are collected rather than asserted in the loop: panicking while
+    // SQLite frames are still on the stack aborts instead of unwinding, which
+    // loses the message that says which prefix broke.
+    let target = "comprehensive-tips-to-databases";
+    let mut failures: Vec<String> = Vec::new();
+
+    for end in 1..=target.len() {
+        let prefix = &target[..end];
+        match test_search_notes_hybrid(prefix, 100) {
+            Err(e) => failures.push(format!("{:?} errored: {}", prefix, e)),
+            Ok(results) if !results.iter().any(|f| f == note) => {
+                failures.push(format!("{:?} did not return the note it prefixes", prefix))
+            }
+            Ok(_) => {}
+        }
+    }
+
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
