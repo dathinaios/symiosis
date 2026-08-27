@@ -7,7 +7,6 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
 use crate::{
-    config::get_config_notes_dir,
     database::with_db,
     logging::log,
     services::note_service::update_note_in_database,
@@ -78,7 +77,7 @@ pub fn setup_notes_watcher(
     app_handle: AppHandle,
     app_state: Arc<crate::core::state::AppState>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let canonical_notes_dir = setup_canonical_notes_directory()?;
+    let canonical_notes_dir = setup_canonical_notes_directory(&app_state.notes_dir())?;
     let debounced_watcher = Arc::new(DebouncedWatcher::new(500));
     let (mut watcher, rx) = create_watcher_and_channel()?;
 
@@ -97,10 +96,10 @@ pub fn setup_notes_watcher(
     Ok(())
 }
 
-fn setup_canonical_notes_directory() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let notes_dir = get_config_notes_dir();
-
-    std::fs::create_dir_all(&notes_dir)?;
+fn setup_canonical_notes_directory(
+    notes_dir: &std::path::Path,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    std::fs::create_dir_all(notes_dir)?;
 
     let canonical_notes_dir = notes_dir.canonicalize().map_err(|e| {
         log(
@@ -284,6 +283,7 @@ fn create_backup_if_content_changed(
             Ok(old_content) => {
                 if old_content != new_content {
                     match create_versioned_backup(
+                        &app_state.notes_dir(),
                         path,
                         BackupType::ExternalChange,
                         Some(&old_content),

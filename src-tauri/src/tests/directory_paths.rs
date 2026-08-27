@@ -2,7 +2,7 @@
 //!
 //! Tests for directory path functions and platform-specific behavior.
 
-use crate::utilities::paths::get_database_path;
+use crate::utilities::paths::get_database_path_for_notes_dir;
 use crate::utilities::paths::{get_config_path, get_data_dir, get_default_notes_dir};
 
 #[test]
@@ -42,7 +42,10 @@ fn test_get_data_dir_returns_valid_path() {
 
 // Platform-specific tests consolidated into test_platform_data_dir_correctness
 
+// Reads the real config/notes paths, so it must not run while another
+// test has SYMIOSIS_TEST_CONFIG_PATH pointing at a temp directory.
 #[test]
+#[serial_test::serial]
 fn test_get_config_path_structure() {
     let config_path = get_config_path();
 
@@ -84,7 +87,10 @@ fn test_get_config_path_structure() {
     }
 }
 
+// Reads the real config/notes paths, so it must not run while another
+// test has SYMIOSIS_TEST_CONFIG_PATH pointing at a temp directory.
 #[test]
+#[serial_test::serial]
 fn test_get_default_notes_dir_structure() {
     let notes_dir = get_default_notes_dir();
 
@@ -132,9 +138,13 @@ fn test_get_default_notes_dir_structure() {
     }
 }
 
+// Reads the real config/notes paths, so it must not run while another
+// test has SYMIOSIS_TEST_CONFIG_PATH pointing at a temp directory.
 #[test]
+#[serial_test::serial]
 fn test_database_path_uses_data_dir() {
-    let db_path = get_database_path().expect("Should get database path");
+    let db_path = get_database_path_for_notes_dir(&crate::config::get_config_notes_dir())
+        .expect("Should get database path");
 
     assert!(db_path.is_absolute(), "Database path should be absolute");
     assert!(
@@ -181,12 +191,16 @@ fn test_database_path_uses_data_dir() {
 
 // Path absoluteness testing integrated into individual path tests
 
+// Reads the real config/notes paths, so it must not run while another
+// test has SYMIOSIS_TEST_CONFIG_PATH pointing at a temp directory.
 #[test]
+#[serial_test::serial]
 fn test_directory_path_consistency() {
     // All directory functions should work together consistently
     let config_path = get_config_path();
     let notes_dir = get_default_notes_dir();
-    let db_path = get_database_path().expect("Should get database path");
+    let db_path = get_database_path_for_notes_dir(&crate::config::get_config_notes_dir())
+        .expect("Should get database path");
 
     // All should be non-empty
     assert!(!config_path.to_string_lossy().is_empty());
@@ -206,7 +220,10 @@ fn test_directory_path_consistency() {
 
 // Fallback behavior testing integrated into main path tests
 
+// Reads the real config/notes paths, so it must not run while another
+// test has SYMIOSIS_TEST_CONFIG_PATH pointing at a temp directory.
 #[test]
+#[serial_test::serial]
 fn test_platform_data_dir_correctness() {
     // This test runs on all platforms and validates the current platform's behavior
     if let Some(data_dir) = get_data_dir() {
@@ -256,7 +273,10 @@ fn test_platform_data_dir_correctness() {
     }
 }
 
+// Reads the real config/notes paths, so it must not run while another
+// test has SYMIOSIS_TEST_CONFIG_PATH pointing at a temp directory.
 #[test]
+#[serial_test::serial]
 fn test_real_filesystem_integration() {
     // Test that our directory functions work with actual filesystem operations
     let temp_dir = std::env::temp_dir().join("symiosis_test");

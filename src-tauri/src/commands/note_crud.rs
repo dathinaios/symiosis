@@ -165,9 +165,10 @@ pub fn save_note_with_content_check(
     let result = || -> AppResult<()> {
         validate_note_name(note_name)?;
         let config = app_state.config.read().unwrap_or_else(|e| e.into_inner());
-        let note_path = std::path::PathBuf::from(&config.notes_directory).join(note_name);
-        validate_content_unchanged(&note_path, note_name, original_content, content)?;
-        perform_safe_write_and_update(&note_path, content, note_name, &app_state)?;
+        let notes_dir = std::path::PathBuf::from(&config.notes_directory);
+        let note_path = notes_dir.join(note_name);
+        validate_content_unchanged(&notes_dir, &note_path, note_name, original_content, content)?;
+        perform_safe_write_and_update(&notes_dir, &note_path, content, note_name, &app_state)?;
         Ok(())
     }();
     result.map_err(|e| e.to_string())
@@ -188,7 +189,7 @@ pub fn rename_note(
         let old_path = notes_dir.join(&old_name);
         let new_path = notes_dir.join(&new_name);
 
-        match create_rename_backup(&old_path)? {
+        match create_rename_backup(&notes_dir, &old_path)? {
             Some(backup_path) => perform_atomic_rename_with_database(
                 &old_path,
                 &new_path,
@@ -218,7 +219,8 @@ pub fn delete_note(
             );
             e.into_inner()
         });
-        let note_path = std::path::PathBuf::from(&config.notes_directory).join(note_name);
+        let notes_dir = std::path::PathBuf::from(&config.notes_directory);
+        let note_path = notes_dir.join(note_name);
 
         log(
             "DELETE_NOTE",
@@ -229,7 +231,7 @@ pub fn delete_note(
             )),
         );
 
-        match perform_backup_and_delete(&note_path, note_name, &app_state)? {
+        match perform_backup_and_delete(&notes_dir, &note_path, note_name, &app_state)? {
             true => handle_database_cleanup(note_name, &app_state),
             false => handle_database_only_delete(note_name, &app_state),
         }
@@ -238,11 +240,12 @@ pub fn delete_note(
 }
 
 fn perform_backup_and_delete(
-    note_path: &std::path::PathBuf,
+    notes_dir: &std::path::Path,
+    note_path: &std::path::Path,
     note_name: &str,
     app_state: &tauri::State<crate::core::state::AppState>,
 ) -> AppResult<bool> {
-    let copy_result = create_versioned_backup(note_path, BackupType::Delete, None);
+    let copy_result = create_versioned_backup(notes_dir, note_path, BackupType::Delete, None);
 
     match copy_result {
         Ok(backup_path) => {
@@ -319,7 +322,8 @@ fn handle_database_cleanup(
 }
 
 fn validate_content_unchanged(
-    note_path: &std::path::PathBuf,
+    notes_dir: &std::path::Path,
+    note_path: &std::path::Path,
     note_name: &str,
     original_content: &str,
     content: &str,
@@ -331,7 +335,8 @@ fn validate_content_unchanged(
     };
 
     if current_content != original_content {
-        match create_versioned_backup(note_path, BackupType::SaveFailure, Some(content)) {
+        match create_versioned_backup(notes_dir, note_path, BackupType::SaveFailure, Some(content))
+        {
             Ok(backup_path) => {
                 log(
                     "FILE_BACKUP",
@@ -362,7 +367,8 @@ fn validate_content_unchanged(
 }
 
 fn perform_safe_write_and_update(
-    note_path: &std::path::PathBuf,
+    notes_dir: &std::path::Path,
+    note_path: &std::path::Path,
     content: &str,
     note_name: &str,
     app_state: &tauri::State<crate::core::state::AppState>,
@@ -371,7 +377,9 @@ fn perform_safe_write_and_update(
         fs::create_dir_all(parent)?;
     }
 
-    super::notes::with_programmatic_flag(app_state, || safe_write_note(note_path, content))?;
+    super::notes::with_programmatic_flag(app_state, || {
+        safe_write_note(notes_dir, note_path, content)
+    })?;
 
     let modified = file_modified_secs(note_path);
 
@@ -387,8 +395,11 @@ fn perform_safe_write_and_update(
     }
 }
 
-fn create_rename_backup(old_path: &std::path::PathBuf) -> AppResult<Option<std::path::PathBuf>> {
-    let backup_result = create_versioned_backup(old_path, BackupType::Rename, None);
+fn create_rename_backup(
+    notes_dir: &std::path::Path,
+    old_path: &std::path::Path,
+) -> AppResult<Option<std::path::PathBuf>> {
+    let backup_result = create_versioned_backup(notes_dir, old_path, BackupType::Rename, None);
 
     match backup_result {
         Ok(backup_path) => Ok(Some(backup_path)),

@@ -1,7 +1,7 @@
 use crate::core::{AppError, AppResult};
-use crate::utilities::paths::get_database_path;
+use crate::utilities::paths::get_database_path_for_notes_dir;
 use rusqlite::Connection;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct DatabaseManager {
     connection: Connection,
@@ -9,8 +9,8 @@ pub struct DatabaseManager {
 }
 
 impl DatabaseManager {
-    pub fn new() -> AppResult<Self> {
-        let db_path = get_database_path()?;
+    pub fn new(notes_dir: &Path) -> AppResult<Self> {
+        let db_path = get_database_path_for_notes_dir(notes_dir)?;
         let conn = Self::create_connection(&db_path)?;
 
         Ok(Self {
@@ -19,7 +19,7 @@ impl DatabaseManager {
         })
     }
 
-    fn create_connection(db_path: &PathBuf) -> AppResult<Connection> {
+    fn create_connection(db_path: &Path) -> AppResult<Connection> {
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
                 AppError::DatabaseConnection(format!("Failed to create database directory: {}", e))
@@ -30,8 +30,8 @@ impl DatabaseManager {
             .map_err(|e| AppError::DatabaseConnection(format!("Failed to open database: {}", e)))
     }
 
-    pub fn ensure_current_connection(&mut self) -> AppResult<bool> {
-        let expected_db_path = get_database_path()?;
+    pub fn ensure_current_connection(&mut self, notes_dir: &Path) -> AppResult<bool> {
+        let expected_db_path = get_database_path_for_notes_dir(notes_dir)?;
 
         if self.current_db_path != expected_db_path {
             let new_conn = Self::create_connection(&expected_db_path)?;
@@ -94,6 +94,11 @@ where
 }
 
 pub fn refresh_database_connection(app_state: &crate::core::state::AppState) -> AppResult<bool> {
+    // Resolve the notes directory before taking any other lock. Elsewhere the
+    // config lock is held while acquiring the database locks, so acquiring them
+    // in the opposite order here would invert the lock hierarchy.
+    let notes_dir = app_state.notes_dir();
+
     // First acquire read lock on rebuild_lock to ensure no rebuilds are happening
     let _rebuild_guard = app_state.database_rebuild_lock.read().map_err(|e| {
         AppError::DatabaseConnection(format!("Database rebuild lock poisoned: {}", e))
@@ -104,7 +109,7 @@ pub fn refresh_database_connection(app_state: &crate::core::state::AppState) -> 
         AppError::DatabaseConnection(format!("Database manager lock poisoned: {}", e))
     })?;
 
-    manager.ensure_current_connection()
+    manager.ensure_current_connection(&notes_dir)
 }
 
 // Platform-specific utility functions

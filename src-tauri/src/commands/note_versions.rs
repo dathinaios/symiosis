@@ -67,10 +67,11 @@ pub fn get_note_versions(
         };
 
         let note_path = notes_dir.join(note_name);
-        let note_backup_dir = crate::utilities::file_safety::safe_backup_path(&note_path)
-            .ok()
-            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-            .unwrap_or_else(|| backup_dir.clone());
+        let note_backup_dir =
+            crate::utilities::file_safety::safe_backup_path(&notes_dir, &note_path)
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                .unwrap_or_else(|| backup_dir.clone());
 
         if !note_backup_dir.exists() {
             return Ok(Vec::new());
@@ -149,7 +150,7 @@ pub fn recover_note_version(
 
         // Use the same programmatic flag and safe write as normal saves
         super::notes::with_programmatic_flag(&app_state, || {
-            safe_write_note(&note_path, &version_content)
+            safe_write_note(&notes_dir, &note_path, &version_content)
         })?;
 
         let modified = file_modified_secs(&note_path);
@@ -273,7 +274,7 @@ pub fn recover_deleted_file(
 
         // Write to the original location
         super::notes::with_programmatic_flag(&app_state, || {
-            safe_write_note(&note_path, &backup_content)
+            safe_write_note(&notes_dir, &note_path, &backup_content)
         })?;
 
         let modified = file_modified_secs(&note_path);

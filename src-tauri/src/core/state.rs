@@ -1,4 +1,5 @@
 use crate::{config::AppConfig, core::AppResult, database::DatabaseManager, logging::log};
+use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicBool, AtomicUsize},
     Arc, Mutex, RwLock,
@@ -15,7 +16,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(config: AppConfig) -> AppResult<Self> {
-        let database_manager = DatabaseManager::new()?;
+        let database_manager = DatabaseManager::new(&notes_dir_of(&config))?;
 
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
@@ -64,8 +65,10 @@ impl AppState {
     }
 
     fn new_with_recovery(config: AppConfig) -> AppResult<Self> {
+        let notes_dir = notes_dir_of(&config);
+
         // Try to delete the corrupted database and start fresh
-        if let Ok(db_path) = crate::utilities::paths::get_database_path() {
+        if let Ok(db_path) = crate::utilities::paths::get_database_path_for_notes_dir(&notes_dir) {
             if db_path.exists() {
                 if let Err(e) = std::fs::remove_file(&db_path) {
                     log(
@@ -78,7 +81,7 @@ impl AppState {
         }
 
         // Try to create fresh database connection
-        let database_manager = DatabaseManager::new()?;
+        let database_manager = DatabaseManager::new(&notes_dir)?;
         let state = Self {
             config: Arc::new(RwLock::new(config)),
             was_first_run: Arc::new(AtomicBool::new(false)),
@@ -105,4 +108,19 @@ impl AppState {
     pub fn programmatic_operation_in_progress(&self) -> &AtomicUsize {
         &self.programmatic_operation_in_progress
     }
+
+    /// The configured notes directory.
+    ///
+    /// This is the single source of truth for where notes live. Everything that
+    /// needs it — note paths, backup paths, the database location, the file
+    /// watcher — reads it from here rather than re-parsing `config.toml`, so
+    /// they cannot drift apart from the config the app is actually running on.
+    pub fn notes_dir(&self) -> PathBuf {
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
+        notes_dir_of(&config)
+    }
+}
+
+fn notes_dir_of(config: &AppConfig) -> PathBuf {
+    crate::config::get_config_notes_dir_from_config(config)
 }

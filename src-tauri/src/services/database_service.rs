@@ -1,5 +1,4 @@
 use crate::{
-    config::get_config_notes_dir,
     core::{state::AppState, AppError, AppResult},
     database::with_db,
     logging::log,
@@ -8,7 +7,7 @@ use rusqlite::{params, Connection};
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
 use tauri::{AppHandle, Emitter};
@@ -74,10 +73,9 @@ pub fn load_all_notes_into_sqlite(
     load_all_notes_into_sqlite_with_progress(app_state, conn, None)
 }
 
-fn ensure_notes_directory_exists() -> rusqlite::Result<()> {
-    let notes_dir = get_config_notes_dir();
+fn ensure_notes_directory_exists(notes_dir: &Path) -> rusqlite::Result<()> {
     if !notes_dir.exists() {
-        if let Err(e) = fs::create_dir_all(&notes_dir) {
+        if let Err(e) = fs::create_dir_all(notes_dir) {
             log(
                 "DIRECTORY_CREATION",
                 "Failed to create notes directory",
@@ -101,14 +99,13 @@ fn is_note_file(path: &std::path::Path) -> bool {
         .unwrap_or(false)
 }
 
-fn scan_filesystem_for_notes() -> rusqlite::Result<Vec<(String, PathBuf, i64)>> {
-    let notes_dir = get_config_notes_dir();
+fn scan_filesystem_for_notes(notes_dir: &Path) -> rusqlite::Result<Vec<(String, PathBuf, i64)>> {
     let mut filesystem_files = Vec::new();
 
-    for entry in WalkDir::new(&notes_dir).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(notes_dir).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
             let path = entry.path();
-            let relative = path.strip_prefix(&notes_dir).unwrap_or(path);
+            let relative = path.strip_prefix(notes_dir).unwrap_or(path);
             let filename = relative.to_string_lossy().to_string();
 
             if filename.contains("/.") || filename.starts_with('.') {
@@ -272,12 +269,13 @@ fn update_unindexed_file(
 }
 
 pub fn load_all_notes_into_sqlite_with_progress(
-    _app_state: &AppState,
+    app_state: &AppState,
     conn: &mut Connection,
     app_handle: Option<&AppHandle>,
 ) -> rusqlite::Result<()> {
-    ensure_notes_directory_exists()?;
-    let filesystem_files = scan_filesystem_for_notes()?;
+    let notes_dir = app_state.notes_dir();
+    ensure_notes_directory_exists(&notes_dir)?;
+    let filesystem_files = scan_filesystem_for_notes(&notes_dir)?;
     let database_files = load_existing_database_files(conn)?;
     sync_database_with_filesystem(conn, &filesystem_files, &database_files, app_handle)
 }
@@ -393,7 +391,7 @@ pub async fn recreate_database_with_progress(
 }
 
 pub fn quick_filesystem_sync_check(app_state: &AppState) -> AppResult<bool> {
-    let notes_dir = get_config_notes_dir();
+    let notes_dir = app_state.notes_dir();
 
     if !notes_dir.exists() {
         return Ok(true);
@@ -496,8 +494,9 @@ fn log_database_success(category: &str, message: &str) {
     log(category, &format!("✅ {}", message), None);
 }
 
-fn is_new_database() -> bool {
-    let db_path = crate::utilities::paths::get_database_path().unwrap_or_default();
+fn is_new_database(notes_dir: &Path) -> bool {
+    let db_path =
+        crate::utilities::paths::get_database_path_for_notes_dir(notes_dir).unwrap_or_default();
     !db_path.exists()
 }
 
@@ -549,7 +548,7 @@ fn handle_database_initialization_failure(
     app_state: &AppState,
     e: crate::core::AppError,
 ) -> AppResult<()> {
-    let is_new_db = is_new_database();
+    let is_new_db = is_new_database(&app_state.notes_dir());
 
     if is_new_db {
         log("DATABASE_INIT", "🔧 Creating new database...", None);
@@ -595,8 +594,8 @@ fn initialize_database_schema(app_state: &AppState) -> AppResult<()> {
     with_db(app_state, |conn| init_db(conn).map_err(|e| e.into()))
 }
 
-fn prepare_database_environment() -> () {
-    if let Ok(db_path) = crate::utilities::paths::get_database_path() {
+fn prepare_database_environment(notes_dir: &Path) {
+    if let Ok(db_path) = crate::utilities::paths::get_database_path_for_notes_dir(notes_dir) {
         if let Some(parent) = db_path.parent() {
             if let Err(e) = std::fs::create_dir_all(parent) {
                 log(
@@ -618,7 +617,7 @@ fn prepare_database_environment() -> () {
 }
 
 pub fn initialize_application_database(app_state: &AppState) -> AppResult<()> {
-    prepare_database_environment();
+    prepare_database_environment(&app_state.notes_dir());
 
     let init_result = initialize_database_schema(app_state);
 

@@ -19,7 +19,10 @@ fn test_default_config_values() {
     assert!(config.notes_directory.contains("Notes") || config.notes_directory == "./notes");
 }
 
+// Reads the real config/notes paths, so it must not run while another
+// test has SYMIOSIS_TEST_CONFIG_PATH pointing at a temp directory.
 #[test]
+#[serial_test::serial]
 fn test_get_default_notes_dir() {
     let notes_dir = get_default_notes_dir();
     // Should be either ~/Documents/Notes or ./notes fallback
@@ -27,7 +30,10 @@ fn test_get_default_notes_dir() {
     assert!(!notes_dir.is_empty());
 }
 
+// Reads the real config/notes paths, so it must not run while another
+// test has SYMIOSIS_TEST_CONFIG_PATH pointing at a temp directory.
 #[test]
+#[serial_test::serial]
 fn test_get_config_path() {
     let config_path = get_config_path();
     // Should be platform-appropriate config path
@@ -462,4 +468,62 @@ ui_theme = "gruvbox-dark"
 "#,
     );
     assert_eq!(omitted.interface.show_in_dock, false);
+}
+
+/// Note paths and backup paths must both derive from the configuration the app
+/// is running on. Previously note paths came from `AppState` while backup paths
+/// re-read `config.toml`, so editing the file without a reload made every
+/// backup fail with "not within configured notes directory" — silently, because
+/// the rename path maps that error to "no backup needed".
+#[test]
+#[serial_test::serial]
+fn test_backups_follow_the_running_config_not_the_file_on_disk() {
+    use crate::tests::test_utils::{
+        create_test_mock_app_with_config, test_create_new_note, TestConfigOverride,
+    };
+    use tauri::Manager;
+
+    let test_override = TestConfigOverride::new().expect("Failed to create test override");
+    let notes_dir = test_override.notes_dir();
+
+    test_create_new_note("drift.md").expect("Should create note");
+
+    // The app keeps running on the config it started with.
+    let running_config = load_config();
+    let app = create_test_mock_app_with_config(running_config);
+
+    // Point the config file at a different directory without reloading. The
+    // running AppState still holds the original notes directory.
+    let other_dir = notes_dir.parent().unwrap().join("_tmp_elsewhere");
+    std::fs::create_dir_all(&other_dir).expect("Should create the decoy directory");
+    let mut drifted = AppConfig::default();
+    drifted.notes_directory = other_dir.to_string_lossy().to_string();
+    std::fs::write(
+        get_config_path(),
+        toml::to_string(&drifted).expect("Should serialize config"),
+    )
+    .expect("Should rewrite config file");
+
+    crate::commands::notes::save_note_with_content_check(
+        "drift.md",
+        "content written after config drift",
+        "",
+        app.state::<crate::core::state::AppState>(),
+    )
+    .expect("Save should still succeed with a drifted config file");
+
+    let backup_dir = crate::utilities::paths::get_backup_dir_for_notes_path(&notes_dir)
+        .expect("Should resolve backup directory");
+    let backups: Vec<_> = walkdir::WalkDir::new(&backup_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.file_name().to_string_lossy().starts_with("drift."))
+        .collect();
+
+    assert!(
+        !backups.is_empty(),
+        "A backup should have been written under the running config's backup directory {}",
+        backup_dir.display()
+    );
 }

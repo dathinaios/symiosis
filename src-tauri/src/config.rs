@@ -218,6 +218,13 @@ impl Default for EditorConfig {
     }
 }
 
+/// The notes directory according to the config file on disk.
+///
+/// Production code must not use this: it re-reads and re-parses `config.toml`,
+/// so it can disagree with the configuration the running app holds. Use
+/// `AppState::notes_dir()` instead. Tests use it to assert that the on-disk
+/// config really does point at their temporary directory.
+#[cfg(test)]
 pub fn get_config_notes_dir() -> PathBuf {
     let config = load_config();
     crate::utilities::config_helpers::get_config_notes_dir_from_config(&config.notes_directory)
@@ -227,45 +234,37 @@ pub fn get_config_notes_dir_from_config(config: &AppConfig) -> PathBuf {
     crate::utilities::config_helpers::get_config_notes_dir_from_config(&config.notes_directory)
 }
 
+/// Read the config file, falling back to defaults when it is missing or
+/// unparseable. Purely a read — creating the file is `ensure_config_file_exists`.
 pub fn load_config() -> AppConfig {
-    let config_path = get_config_path();
-
-    match fs::read_to_string(&config_path) {
+    match fs::read_to_string(get_config_path()) {
         Ok(content) => load_config_from_content(&content),
-        Err(_) => {
-            let default_config = AppConfig::default();
-            if let Err(e) = save_config(&default_config) {
-                log(
-                    "CONFIG_CREATION",
-                    "Failed to create default config file",
-                    Some(&e.to_string()),
-                );
-            }
-            default_config
-        }
+        Err(_) => AppConfig::default(),
+    }
+}
+
+/// Write a default config file if none exists. Called once at startup; keeping
+/// it separate stops a plain config read from writing to disk as a side effect.
+fn ensure_config_file_exists() {
+    if get_config_path().exists() {
+        return;
+    }
+
+    if let Err(e) = save_config(&AppConfig::default()) {
+        log(
+            "CONFIG_CREATION",
+            "Failed to create default config file",
+            Some(&e.to_string()),
+        );
     }
 }
 
 pub fn load_config_with_first_run_info() -> (AppConfig, bool) {
-    let config_path = get_config_path();
-    let was_first_run = !config_path.exists();
+    let was_first_run = !get_config_path().exists();
 
-    let config = match fs::read_to_string(&config_path) {
-        Ok(content) => load_config_from_content(&content),
-        Err(_) => {
-            let default_config = AppConfig::default();
-            if let Err(e) = save_config(&default_config) {
-                log(
-                    "CONFIG_CREATION",
-                    "Failed to create default config file",
-                    Some(&e.to_string()),
-                );
-            }
-            default_config
-        }
-    };
+    ensure_config_file_exists();
 
-    (config, was_first_run)
+    (load_config(), was_first_run)
 }
 
 pub fn save_config(config: &AppConfig) -> AppResult<()> {

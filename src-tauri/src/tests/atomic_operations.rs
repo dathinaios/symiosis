@@ -158,7 +158,7 @@ fn test_safe_backup_path_validation() {
     // Test the validation logic directly by checking the error message
     // when a path is outside the configured notes directory
     let invalid_note_path = std::path::PathBuf::from("/completely/different/path/test.md");
-    let backup_path = safe_backup_path(&invalid_note_path);
+    let backup_path = safe_backup_path(&crate::config::get_config_notes_dir(), &invalid_note_path);
 
     assert!(
         backup_path.is_err(),
@@ -176,7 +176,7 @@ fn test_safe_backup_path_validation() {
 
     // Test invalid path outside notes directory
     let invalid_note_path = PathBuf::from("/tmp/outside.md");
-    let backup_path = safe_backup_path(&invalid_note_path);
+    let backup_path = safe_backup_path(&crate::config::get_config_notes_dir(), &invalid_note_path);
     assert!(backup_path.is_err(), "Invalid note path should fail");
 
     if let Err(e) = backup_path {
@@ -291,7 +291,11 @@ fn test_atomic_write_rollback_protection() {
 
     // Test normal write operation (should succeed)
     let new_content = "New content after successful write";
-    let result = safe_write_note(&note_path, new_content);
+    let result = safe_write_note(
+        &crate::config::get_config_notes_dir(),
+        &note_path,
+        new_content,
+    );
 
     match result {
         Ok(()) => {

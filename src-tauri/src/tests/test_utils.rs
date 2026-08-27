@@ -318,6 +318,22 @@ mod test_command_wrappers {
     use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
     use tauri::{App, Manager};
 
+    /// Create a mock Tauri app around an explicit config, rather than whatever
+    /// `config.toml` currently says. Lets a test hold a running AppState while
+    /// the file on disk changes underneath it.
+    pub fn create_test_mock_app_with_config(config: crate::config::AppConfig) -> App<MockRuntime> {
+        if std::env::var("SYMIOSIS_TEST_MODE_ENABLED").is_err() {
+            panic!("CRITICAL SAFETY ERROR: create_test_mock_app_with_config() called outside of TestConfigOverride!");
+        }
+
+        let app_state = AppState::new_with_fallback(config).expect("Test database setup failed");
+
+        mock_builder()
+            .manage(app_state)
+            .build(mock_context(noop_assets()))
+            .expect("Failed to build test app")
+    }
+
     /// Create a mock Tauri app with test AppState
     fn create_test_mock_app() -> App<MockRuntime> {
         // SAFETY CHECK: Ensure we're in test mode before proceeding

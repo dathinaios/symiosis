@@ -1,12 +1,11 @@
 use crate::{
-    config::get_config_notes_dir,
     core::{AppError, AppResult},
     logging::log,
     utilities::paths::{get_backup_dir_for_notes_path, get_temp_dir},
 };
 use std::{
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -35,7 +34,8 @@ impl BackupType {
 }
 
 pub fn create_versioned_backup(
-    note_path: &PathBuf,
+    notes_dir: &Path,
+    note_path: &Path,
     backup_type: BackupType,
     content_override: Option<&str>,
 ) -> AppResult<PathBuf> {
@@ -51,7 +51,7 @@ pub fn create_versioned_backup(
 
     let backup_filename = generate_backup_filename(note_filename, &backup_type, timestamp);
 
-    let mut backup_path = safe_backup_path(note_path)?;
+    let mut backup_path = safe_backup_path(notes_dir, note_path)?;
     backup_path.set_file_name(&backup_filename);
 
     if let Some(backup_parent) = backup_path.parent() {
@@ -88,33 +88,38 @@ pub fn create_versioned_backup(
     Ok(backup_path)
 }
 
-pub fn safe_write_note(note_path: &PathBuf, content: &str) -> AppResult<()> {
-    let rollback_backup_path = create_rollback_backup_if_exists(note_path)?;
+pub fn safe_write_note(notes_dir: &Path, note_path: &Path, content: &str) -> AppResult<()> {
+    let rollback_backup_path = create_rollback_backup_if_exists(notes_dir, note_path)?;
 
     let temp_path = match create_temp_file_with_content(content) {
         Ok(path) => path,
         Err(e) => {
-            create_save_failure_backup(note_path, content);
+            create_save_failure_backup(notes_dir, note_path, content);
             return Err(e);
         }
     };
 
     perform_atomic_write_with_rollback(
+        notes_dir,
         note_path,
         &temp_path,
         content,
-        rollback_backup_path.as_ref(),
+        rollback_backup_path.as_deref(),
     )?;
     verify_written_content(note_path, content)?;
     Ok(())
 }
 
-pub fn safe_backup_path(note_path: &PathBuf) -> AppResult<PathBuf> {
-    let notes_dir = get_config_notes_dir();
-    let backup_dir = get_backup_dir_for_notes_path(&notes_dir)?;
+/// Where a note's backups live, mirroring its position under `notes_dir`.
+///
+/// `notes_dir` is passed in rather than read from `config.toml`: callers
+/// resolve note paths from `AppState`, and re-reading the config here would let
+/// the two disagree whenever the file on disk had been edited without a reload.
+pub fn safe_backup_path(notes_dir: &Path, note_path: &Path) -> AppResult<PathBuf> {
+    let backup_dir = get_backup_dir_for_notes_path(notes_dir)?;
 
     // Get relative path from notes directory to preserve folder structure
-    let relative_path = note_path.strip_prefix(&notes_dir).map_err(|_| {
+    let relative_path = note_path.strip_prefix(notes_dir).map_err(|_| {
         AppError::InvalidPath(format!(
             "Note path '{}' is not within configured notes directory '{}'",
             note_path.display(),
@@ -149,7 +154,7 @@ pub fn cleanup_temp_files() -> AppResult<()> {
     Ok(())
 }
 
-fn prune_old_backups(latest_backup: &PathBuf, max_backups: usize) -> AppResult<()> {
+fn prune_old_backups(latest_backup: &Path, max_backups: usize) -> AppResult<()> {
     let parent = latest_backup.parent().ok_or_else(|| {
         AppError::InvalidPath("Failed to get backup parent directory".to_string())
     })?;
@@ -214,9 +219,13 @@ fn generate_backup_filename(
     format!("{}.{}.{}.md", base_name, backup_type.suffix(), timestamp)
 }
 
-fn create_rollback_backup_if_exists(note_path: &PathBuf) -> AppResult<Option<PathBuf>> {
+fn create_rollback_backup_if_exists(
+    notes_dir: &Path,
+    note_path: &Path,
+) -> AppResult<Option<PathBuf>> {
     if note_path.exists() {
         Ok(Some(create_versioned_backup(
+            notes_dir,
             note_path,
             BackupType::Rollback,
             None,
@@ -243,10 +252,11 @@ fn create_temp_file_with_content(content: &str) -> AppResult<PathBuf> {
 }
 
 fn perform_atomic_write_with_rollback(
-    note_path: &PathBuf,
-    temp_path: &PathBuf,
+    notes_dir: &Path,
+    note_path: &Path,
+    temp_path: &Path,
     content: &str,
-    rollback_backup_path: Option<&PathBuf>,
+    rollback_backup_path: Option<&Path>,
 ) -> AppResult<()> {
     if let Err(rename_err) = fs::rename(temp_path, note_path) {
         // fs::rename fails across filesystems (EXDEV). Fall back to copy + delete.
@@ -273,7 +283,13 @@ fn perform_atomic_write_with_rollback(
             Some(&rename_err.to_string()),
         );
 
-        handle_rename_failure_with_rollback(temp_path, note_path, content, rollback_backup_path)?;
+        handle_rename_failure_with_rollback(
+            notes_dir,
+            temp_path,
+            note_path,
+            content,
+            rollback_backup_path,
+        )?;
         return Err(AppError::FileWrite(format!(
             "Failed to write file (rollback completed): {}",
             rename_err
@@ -294,10 +310,11 @@ fn perform_atomic_write_with_rollback(
 }
 
 fn handle_rename_failure_with_rollback(
-    temp_path: &PathBuf,
-    note_path: &PathBuf,
+    notes_dir: &Path,
+    temp_path: &Path,
+    note_path: &Path,
     content: &str,
-    rollback_backup_path: Option<&PathBuf>,
+    rollback_backup_path: Option<&Path>,
 ) -> AppResult<()> {
     if let Some(backup_path) = rollback_backup_path {
         match fs::copy(backup_path, note_path) {
@@ -320,7 +337,7 @@ fn handle_rename_failure_with_rollback(
                     ),
                     Some(&rollback_err.to_string()),
                 );
-                create_save_failure_backup(note_path, content);
+                create_save_failure_backup(notes_dir, note_path, content);
                 cleanup_temp_file(temp_path);
                 return Err(AppError::FileWrite(
                     "Critical failure: rename failed and rollback failed - original file may be lost".to_string()
@@ -328,14 +345,14 @@ fn handle_rename_failure_with_rollback(
             }
         }
     } else {
-        create_save_failure_backup(note_path, content);
+        create_save_failure_backup(notes_dir, note_path, content);
     }
 
     cleanup_temp_file(temp_path);
     Ok(())
 }
 
-fn verify_written_content(note_path: &PathBuf, expected_content: &str) -> AppResult<()> {
+fn verify_written_content(note_path: &Path, expected_content: &str) -> AppResult<()> {
     let written_content = fs::read_to_string(note_path)
         .map_err(|e| AppError::FileWrite(format!("Failed to verify written content: {}", e)))?;
 
@@ -357,7 +374,7 @@ fn verify_written_content(note_path: &PathBuf, expected_content: &str) -> AppRes
     Ok(())
 }
 
-fn cleanup_temp_file(temp_path: &PathBuf) {
+fn cleanup_temp_file(temp_path: &Path) {
     if let Err(cleanup_err) = fs::remove_file(temp_path) {
         log(
             "TEMP_CLEANUP",
@@ -367,8 +384,8 @@ fn cleanup_temp_file(temp_path: &PathBuf) {
     }
 }
 
-fn create_save_failure_backup(note_path: &PathBuf, content: &str) {
-    match create_versioned_backup(note_path, BackupType::SaveFailure, Some(content)) {
+fn create_save_failure_backup(notes_dir: &Path, note_path: &Path, content: &str) {
+    match create_versioned_backup(notes_dir, note_path, BackupType::SaveFailure, Some(content)) {
         Ok(backup_path) => {
             log(
                 "FILE_BACKUP",

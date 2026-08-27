@@ -4,7 +4,7 @@
 
 use crate::config::*;
 use crate::utilities::note_renderer::render_note;
-use crate::utilities::paths::get_database_path;
+use crate::utilities::paths::get_database_path_for_notes_dir;
 use crate::utilities::paths::{get_config_path, get_default_notes_dir};
 use crate::utilities::validation::{validate_config, validate_note_name, validate_shortcut_format};
 use std::sync::{Arc, Mutex};
@@ -174,7 +174,9 @@ fn test_concurrent_path_operations() {
                 // These functions should be safe to call concurrently
                 let config_path = get_config_path();
                 let notes_dir = get_default_notes_dir();
-                let db_path = get_database_path().expect("Should get database path");
+                let db_path =
+                    get_database_path_for_notes_dir(&crate::config::get_config_notes_dir())
+                        .expect("Should get database path");
 
                 // All should return consistent, valid paths
                 let path_str = config_path.to_string_lossy();

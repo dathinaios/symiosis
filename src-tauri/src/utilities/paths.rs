@@ -141,11 +141,12 @@ pub fn get_config_path() -> PathBuf {
     }
 }
 
-pub fn get_database_path() -> AppResult<PathBuf> {
-    let notes_dir = crate::config::get_config_notes_dir();
-    get_database_path_for_notes_dir(&notes_dir)
-}
-
+/// Where the index for a given notes directory lives.
+///
+/// There is deliberately no variant that discovers the notes directory for
+/// itself: doing so re-read `config.toml` from disk on every call, which meant
+/// path lookups could disagree with the configuration `AppState` was actually
+/// running on. Callers pass the directory they already hold.
 pub fn get_database_path_for_notes_dir(notes_dir: &std::path::Path) -> AppResult<PathBuf> {
     let encoded_path = encode_path_for_backup(notes_dir);
     get_data_dir()
