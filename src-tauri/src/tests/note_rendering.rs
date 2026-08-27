@@ -86,3 +86,25 @@ fn test_render_plain_text_with_urls() {
     assert!(result.contains(r#"<a href="https://example.com" target="_blank" rel="noopener noreferrer">https://example.com</a>"#));
     assert!(result.ends_with("</pre>"));
 }
+
+#[test]
+fn test_urls_in_attributes_are_left_alone() {
+    let html = r#"<p><img src="https://example.com/a.png" alt="x"></p>"#;
+    let result = linkify_urls_in_html(html).expect("linkify should succeed");
+
+    // Rewriting an attribute value produced `src="<a href="https://..."`, and
+    // the webview then asked the dev server for the literal path `<a href=`.
+    assert_eq!(result, html, "attribute URL must not be linkified");
+    assert!(!result.contains(r#"src="<a"#));
+}
+
+#[test]
+fn test_attribute_url_does_not_block_a_later_text_url() {
+    let html = r#"<p><img src="https://example.com/a.png"> see https://test.org here</p>"#;
+    let result = linkify_urls_in_html(html).expect("linkify should succeed");
+
+    assert!(result.contains(r#"<img src="https://example.com/a.png">"#));
+    assert!(result.contains(
+        r#"<a href="https://test.org" target="_blank" rel="noopener noreferrer">https://test.org</a>"#
+    ));
+}

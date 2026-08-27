@@ -23,8 +23,21 @@ pub(crate) fn linkify_urls_in_html(html: &str) -> AppResult<String> {
                 None => return url.to_string(),
             };
 
-            // Check if this URL is already inside an <a> tag by looking backwards for unclosed <a>
             let before_match = &html[..match_start];
+
+            // A URL between a tag's angle brackets is an attribute value, not
+            // text. Rewriting it produced `src="<a href="https://..."`, and the
+            // webview then requested the literal path `<a href=`.
+            let inside_a_tag = match (before_match.rfind('<'), before_match.rfind('>')) {
+                (Some(open_pos), Some(close_pos)) => open_pos > close_pos,
+                (Some(_), None) => true,
+                _ => false,
+            };
+            if inside_a_tag {
+                return url.to_string();
+            }
+
+            // Check if this URL is already inside an <a> tag by looking backwards for unclosed <a>
             let last_a_open = before_match.rfind("<a ");
             let last_a_close = before_match.rfind("</a>");
 
