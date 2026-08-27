@@ -1,6 +1,6 @@
 # Symiosis Architecture
 
-An assessment of the codebase as of v0.3.7, written before adding new features. It describes how the app is put together, the defects found and fixed during the audit, and the issues deliberately left open.
+An assessment of the codebase as of v0.3.7, written before adding new features. It describes how the app is put together, the defects found and fixed during the audit, the consolidation pass that followed, and the issues deliberately left open.
 
 ---
 
@@ -14,11 +14,12 @@ Symiosis is a Tauri 2 desktop app. Rust owns the filesystem and the search index
 ┌─ Frontend (src/) ──────────────────────────────────────────┐
 │  routes/+page.svelte      composition + Svelte context     │
 │  lib/ui/                  presentation only                │
-│  lib/app/                 coordinator, actions, effects    │
-│  lib/core/                 10 stateful managers            │
+│  lib/app/                 coordinator, commands, keyboard, │
+│                           lifecycle, effects               │
+│  lib/core/                11 stateful managers             │
 │  lib/services/            typed invoke() wrappers          │
 └────────────────────────────────┬───────────────────────────┘
-                                 │ Tauri IPC (32 commands)
+                                 │ Tauri IPC (28 commands)
 ┌────────────────────────────────┴───────────────────────────┐
 │  commands/     IPC surface; validates, then delegates      │
 │  services/     database_service, note_service              │
@@ -30,6 +31,8 @@ Symiosis is a Tauri 2 desktop app. Rust owns the filesystem and the search index
 ```
 
 Dependencies point one way in both halves: UI → app → core → services, and commands → services → utilities. Nothing in `core/` imports from `app/`; nothing in `utilities/` imports from `commands/`. That discipline is the codebase's main structural strength and is what made this audit tractable.
+
+`core/` also imports nothing from `@tauri-apps`. Platform capabilities reach it as injected dependencies (`LinkOpener`, `notifyError`, `configService.onConfigUpdated`), so a manager can be tested without mocking a Tauri module.
 
 ### State
 
@@ -43,7 +46,22 @@ Dependencies point one way in both halves: UI → app → core → services, and
 | `self_writes: Arc<SelfWriteRegistry>`           | Filesystem changes the app made itself, so the watcher can ignore its own echo |
 | `was_first_run: Arc<AtomicBool>`                | Whether `config.toml` was absent at startup                                    |
 
-On the frontend the equivalent is `createAppCoordinator()`, which instantiates the ten managers, wires their dependencies explicitly, and publishes `managers` / `state` / `actions` through Svelte context. Managers are closures over `$state` returning getter objects — no classes, no global stores.
+On the frontend the equivalent is `createAppCoordinator()`, which instantiates the eleven managers, wires their dependencies explicitly, and publishes `managers` and `commands` through Svelte context. Managers are closures over `$state` returning getter objects — no classes, no global stores. That factory shape is load-bearing rather than stylistic: every manager test constructs a fresh instance with hand-built dependencies, which module-level singleton state would make impossible.
+
+Manager dependencies are declared as `Pick<SearchManager, 'searchInput' | 'executeSearch'>` rather than as restated structural types, so each consumer still names only the slice it uses but cannot drift from the real interface.
+
+### The app layer
+
+Four files, each with one job:
+
+| File | Owns |
+| ---- | ---- |
+| `appCoordinator.svelte.ts` | Composition root. Builds the managers, derives `selectedNote` (the one value spanning two managers), wires the rest together. |
+| `commands.svelte.ts` | Every user-triggerable operation, as one surface. Built once with its dependencies; commands read current state from the managers rather than being handed a snapshot. |
+| `keyboard.svelte.ts` | Four per-context keymaps (search input / edit mode / note content / list) resolving a key to a command. Nothing else. |
+| `lifecycle.svelte.ts` | Startup and teardown: config init, the seven Tauri subscriptions, first load, and unwinding all of it. |
+
+`prompt*` commands open a dialog; the bare verb performs the operation — `promptDeleteNote` opens the confirmation, `deleteNote` is what the confirmation calls. Reactive effects are deliberately *not* registered in `lifecycle`: `$effect` throws `effect_orphan` outside component initialisation, so `+page.svelte` registers them via `setupReactiveEffects()`.
 
 ### Storage layout
 
@@ -163,15 +181,34 @@ _Fixed:_ `ci.yml` runs all of them on push and pull request, with clippy gating 
 
 ---
 
+## The consolidation pass
+
+A second pass followed the audit. The finding was that the architecture is sound — the layering, the central coordinator and the factory/DI manager pattern are all correct and were kept — but that four concerns each had **two coexisting mechanisms**, which is what made changes feel like they threaded through everything.
+
+| Concern | Was | Now |
+| ------- | --- | --- |
+| Dispatch | An action registry in `keyboard.svelte.ts` *and* an `actions` getter on the coordinator | One `commands.svelte.ts` |
+| Getting the selection into an operation | A per-call `ActionContext` snapshot *and* currying `selectedNote` into the note actions | One injected `getSelectedNote()` |
+| Reading a value | `coordinator.query` / `coordinator.state.query` / `searchManager.searchInput` / keyboard's `AppState.query` | `searchManager` for search values, the coordinator for `selectedNote` |
+| Declaring a backend config field | The struct, its `Default`, the sanitiser's list, the validator's list | One `shortcuts_config!` invocation |
+
+The registry also dispatched at three different altitudes from one table — an orchestration function, a manager method, and a service call that bypassed every layer — and `deleteNote` meant "open the confirmation dialog" in one place and "delete the note" in another. Both are gone.
+
+Two structural defects came out with it: the coordinator was hiding content-request sequencing and Tauri event lifecycle (now `core/contentLoadingManager.svelte.ts` and `app/lifecycle.svelte.ts`), and its construction order depended on hoisting — `versionExplorerManager` received a function defined 140 lines below it. Construction is now strictly top-down.
+
+Adding a note operation used to touch ~7 sites. It now takes a command, a keymap line, and an optional shortcut default.
+
+---
+
 ## Left open
 
-These are real but were out of scope for this pass. Roughly in order of how much they will cost later.
+These are real but were out of scope. Roughly in order of how much they will cost later.
 
-**Two files are doing too much.** `appCoordinator.svelte.ts` (630 lines) combines state, actions, listener wiring and lifecycle. `contentNavigationManager.svelte.ts` (1007 lines) mixes four navigation modes, accordion styling and clipboard handling. Both are the natural first targets if the feature work touches them.
+**`contentNavigationManager.svelte.ts` is doing too much** (~1000 lines): four navigation modes, accordion styling and clipboard handling. It sits behind one stable interface and causes no threading pain, so splitting it was deferred until a feature actually touches it.
 
-**Error types are inconsistent across the IPC boundary.** 30 of 32 commands return `Result<_, String>`; `load_custom_theme_file` and `validate_theme_path` return `AppResult<T>`, which serialises `AppError` as a structured object — so the frontend's `${e}` interpolation yields `[object Object]` for exactly those two. Worth settling on one shape before adding more commands.
+**The frontend config state is initialised with placeholder values.** `configManager` declares a 40-line object of empty strings and zeros until the real config loads. Making it `AppConfig | null` was considered and rejected: it would push a null-guard to 42 read sites (21 in `HintsPanel` alone, inside `$derived` blocks that evaluate before config loads), which is worse code than the initialiser it removes. The alternative — real default values in TypeScript — would create a second source of truth for defaults that Rust already owns. A better fix is to gate the config-dependent components on `configManager.isInitialized` and render nothing until then; that changes mount behaviour, so it wants a manual smoke test.
 
-**Unused IPC surface.** `list_all_notes`, `hide_main_window` and `validate_theme_path` are registered but never invoked from the frontend; the three `mac_focus` commands are only ever called from Rust and need not be IPC commands at all.
+**Structured errors across IPC.** All 28 commands now return `Result<_, String>`, which is consistent but lossy — the frontend cannot distinguish a missing file from a permission error without matching on message text.
 
 **Search has a hidden ceiling.** FTS5 candidates are capped at a hardcoded `LIMIT 500` before re-ranking, while `max_search_results` is configurable up to 10000 — so an exact title match ranked 501st by BM25 is dropped. Content scoring also lowercases each candidate's full body on every keystroke.
 
@@ -191,13 +228,13 @@ These are real but were out of scope for this pass. Roughly in order of how much
 pnpm install
 pnpm tauri dev          # run the app
 
-pnpm test               # 524 frontend tests
+pnpm test               # 540 frontend tests
 pnpm lint               # eslint
 pnpm check              # svelte-check
 pnpm format:check       # prettier
 
 cd src-tauri
-cargo test              # 129 unit tests + the cleanup integration runner
+cargo test              # 132 unit tests + the cleanup integration runner
 cargo clippy --all-targets --all-features -- -D warnings
 cargo fmt --check
 ```
