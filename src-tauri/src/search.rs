@@ -58,6 +58,20 @@ pub(crate) fn candidate_limit(max_results: usize) -> usize {
     max_results.max(MIN_CANDIDATES)
 }
 
+/// Lowercases ASCII `text` into `buf`, replacing whatever it held.
+///
+/// Must stay equivalent to `text.to_lowercase()`, since the query is lowercased
+/// that way and any divergence stops content matching a query that should find
+/// it. Only ASCII goes through here: Unicode lowercasing is context-sensitive —
+/// it maps a final Greek sigma to `\u{3C2}` where a per-character mapping gives
+/// `\u{3C3}` — so non-ASCII keeps `to_lowercase` instead.
+pub(crate) fn lowercase_ascii_into(buf: &mut String, text: &str) {
+    debug_assert!(text.is_ascii(), "caller must check is_ascii first");
+    buf.clear();
+    buf.push_str(text);
+    buf.make_ascii_lowercase();
+}
+
 /// Builds the FTS5 MATCH pattern for a sanitised query.
 ///
 /// Every term is quoted. `sanitize_fts_query` keeps `-`, which FTS5 reads as an
@@ -227,33 +241,31 @@ impl HybridSearcher {
         None
     }
 
-    fn score_content_match(&mut self, content: &str, query_lower: &str) -> Option<u32> {
-        // `content.to_lowercase()` allocated a fresh copy of the whole note body
-        // for every candidate that missed on title, on every keystroke — on a
-        // 2000-note vault that is megabytes of churn per key press. The
-        // lowercasing itself is unchanged; only the allocation is reused.
-        // Taken out of `self` so `fuzzy_match` can still borrow mutably.
-        let mut buf = std::mem::take(&mut self.lowercase_buf);
-        buf.clear();
-
-        if content.is_ascii() {
-            buf.push_str(content);
-            buf.make_ascii_lowercase();
-        } else {
-            // Unicode lowercasing is context-sensitive: `str::to_lowercase`
-            // maps a final Greek sigma to `ς` where the per-character mapping
-            // gives `σ`, so "ΟΔΟΣ" would stop matching itself. Non-ASCII bodies
-            // keep the allocating path rather than change what matches.
-            buf.push_str(&content.to_lowercase());
-        }
-
-        let score = if buf.contains(query_lower) {
-            let count = buf.matches(query_lower).count() as u32;
+    fn score_lowered(&mut self, lowered: &str, query_lower: &str) -> Option<u32> {
+        if lowered.contains(query_lower) {
+            let count = lowered.matches(query_lower).count() as u32;
             Some(50 + count * 10)
         } else {
-            self.fuzzy_match(&buf, query_lower)
-        };
+            self.fuzzy_match(lowered, query_lower)
+        }
+    }
 
+    fn score_content_match(&mut self, content: &str, query_lower: &str) -> Option<u32> {
+        // Unicode lowercasing is context-sensitive, so non-ASCII keeps exactly
+        // what it did before — one `to_lowercase`, no buffer, no extra copy.
+        if !content.is_ascii() {
+            let lowered = content.to_lowercase();
+            return self.score_lowered(&lowered, query_lower);
+        }
+
+        // ASCII lowercases in place into a buffer reused across candidates.
+        // `to_lowercase()` here allocated a fresh copy of the whole note body
+        // for every candidate that missed on title, on every keystroke — on a
+        // 2000-note vault, megabytes of churn per key press.
+        // Taken out of `self` so `score_lowered` can still borrow mutably.
+        let mut buf = std::mem::take(&mut self.lowercase_buf);
+        lowercase_ascii_into(&mut buf, content);
+        let score = self.score_lowered(&buf, query_lower);
         self.lowercase_buf = buf;
         score
     }

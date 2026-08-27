@@ -348,3 +348,85 @@ fn test_content_search_is_case_insensitive_including_greek() {
         );
     }
 }
+
+#[test]
+fn test_lowercase_ascii_into_matches_to_lowercase_exactly() {
+    use crate::search::lowercase_ascii_into;
+
+    // The query is lowercased with `to_lowercase`, so any divergence here stops
+    // content matching a query that should find it.
+    let mut corpus: Vec<String> = vec![
+        String::new(),
+        " ".to_string(),
+        "Simple ASCII Text".to_string(),
+        "MiXeD cAsE 123 !@#$%^&*()".to_string(),
+    ];
+
+    // Every ASCII byte on its own, and as part of a word.
+    for byte in 0u8..=127 {
+        let c = byte as char;
+        corpus.push(c.to_string());
+        corpus.push(format!("word{}word", c));
+    }
+
+    let mut buf = String::new();
+    for text in &corpus {
+        lowercase_ascii_into(&mut buf, text);
+        assert_eq!(
+            buf,
+            text.to_lowercase(),
+            "diverged for {:?} (bytes {:?})",
+            text,
+            text.as_bytes()
+        );
+    }
+}
+
+#[test]
+fn test_lowercase_ascii_into_is_safe_to_reuse() {
+    use crate::search::lowercase_ascii_into;
+
+    // The buffer is reused across every candidate in a search, so a stale tail
+    // left behind by a longer previous body would corrupt the next score.
+    let mut buf = String::new();
+
+    lowercase_ascii_into(&mut buf, "A VERY LONG PIECE OF ASCII CONTENT INDEED");
+    assert_eq!(buf, "a very long piece of ascii content indeed");
+
+    lowercase_ascii_into(&mut buf, "SHORT");
+    assert_eq!(buf, "short");
+
+    lowercase_ascii_into(&mut buf, "BACK TO ASCII");
+    assert_eq!(buf, "back to ascii");
+
+    lowercase_ascii_into(&mut buf, "");
+    assert_eq!(buf, "");
+}
+
+#[test]
+fn test_non_ascii_never_takes_the_ascii_path() {
+    // These all lowercase differently under ASCII-only rules, so scoring must
+    // route them to `to_lowercase`. Guards the `is_ascii` branch in
+    // `score_content_match`, which is what keeps Greek matching itself.
+    // Note ß is deliberately absent: it lowercases identically under both
+    // paths, so it could not tell them apart.
+    for text in [
+        "\u{39F}\u{394}\u{39F}\u{3A3}", // ΟΔΟΣ, final sigma
+        "\u{3A3}\u{3A3}\u{3A3}",        // ΣΣΣ
+        "\u{130}stanbul",               // İ expands to two chars
+        "\u{2126}",                     // Ohm sign
+        "caf\u{c9}",                    // É
+        "ascii then \u{3A3}",
+    ] {
+        assert!(!text.is_ascii(), "{:?} must not take the ASCII path", text);
+
+        let mut ascii_style = text.to_string();
+        ascii_style.make_ascii_lowercase();
+        assert_ne!(
+            ascii_style,
+            text.to_lowercase(),
+            "{:?} would be unchanged by the ASCII path, so it proves nothing",
+            text
+        );
+    }
+}
