@@ -35,13 +35,13 @@ Dependencies point one way in both halves: UI → app → core → services, and
 
 `AppState` is the single shared backend value, cloned into every command through Tauri's managed state:
 
-| Field | Purpose |
-|---|---|
-| `config: Arc<RwLock<AppConfig>>` | The running configuration — **the** source of truth for the notes directory |
-| `database_manager: Arc<Mutex<DatabaseManager>>` | The one SQLite connection |
-| `database_rebuild_lock: Arc<RwLock<()>>` | Read-held for normal queries, write-held for a full rebuild |
-| `self_writes: Arc<SelfWriteRegistry>` | Filesystem changes the app made itself, so the watcher can ignore its own echo |
-| `was_first_run: Arc<AtomicBool>` | Whether `config.toml` was absent at startup |
+| Field                                           | Purpose                                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| `config: Arc<RwLock<AppConfig>>`                | The running configuration — **the** source of truth for the notes directory    |
+| `database_manager: Arc<Mutex<DatabaseManager>>` | The one SQLite connection                                                      |
+| `database_rebuild_lock: Arc<RwLock<()>>`        | Read-held for normal queries, write-held for a full rebuild                    |
+| `self_writes: Arc<SelfWriteRegistry>`           | Filesystem changes the app made itself, so the watcher can ignore its own echo |
+| `was_first_run: Arc<AtomicBool>`                | Whether `config.toml` was absent at startup                                    |
 
 On the frontend the equivalent is `createAppCoordinator()`, which instantiates the ten managers, wires their dependencies explicitly, and publishes `managers` / `state` / `actions` through Svelte context. Managers are closures over `$state` returning getter objects — no classes, no global stores.
 
@@ -75,7 +75,7 @@ $DATA_DIR/symiosis/
 
 Every defect below was reproduced before being fixed, and each fix carries a regression test that was confirmed to fail against the old behaviour.
 
-The starting point was not a codebase in trouble: 517 frontend tests, 119 Rust tests, eslint, svelte-check and `cargo fmt` were all green. Every defect lived in a gap *between* what those suites covered — and two of them were invisible because the tests mocked the exact seam that broke.
+The starting point was not a codebase in trouble: 517 frontend tests, 119 Rust tests, eslint, svelte-check and `cargo fmt` were all green. Every defect lived in a gap _between_ what those suites covered — and two of them were invisible because the tests mocked the exact seam that broke.
 
 ### Duplicate rows in the notes index
 
@@ -89,9 +89,9 @@ INSERT OR REPLACE ... ('a.md', 'v2', 200)
 
 The trigger was a second bug: the `modified` column was written from `SystemTime::now()` rather than the file's mtime, so the two disagreed whenever a write straddled a second boundary. The next filesystem sync then saw an unchanged note as modified and re-inserted it.
 
-The consequences cascaded. The note appeared twice in search; the duplicate check in `init_db` reported `SQLITE_CORRUPT` and forced a full `DROP TABLE` and re-render of every note. Worse — this surfaced while building the regression test — once a duplicate existed, the verification read in `update_note_in_database` picked up the *wrong* row, so every subsequent save also failed verification and went through database recovery: another full rebuild, every time.
+The consequences cascaded. The note appeared twice in search; the duplicate check in `init_db` reported `SQLITE_CORRUPT` and forced a full `DROP TABLE` and re-render of every note. Worse — this surfaced while building the regression test — once a duplicate existed, the verification read in `update_note_in_database` picked up the _wrong_ row, so every subsequent save also failed verification and went through database recovery: another full rebuild, every time.
 
-*Fixed:* one `upsert_note` helper that deletes by filename before inserting, and `modified` read from the file's real mtime through a shared `fs_meta::file_modified_secs`.
+_Fixed:_ one `upsert_note` helper that deletes by filename before inserting, and `modified` read from the file's real mtime through a shared `fs_meta::file_modified_secs`.
 
 ### Search highlighting corrupted rendered HTML
 
@@ -104,21 +104,21 @@ query "code" → <pre><<mark class="highlight">code</mark> class="language-rust"
 
 The second case destroys the code block. Searches are issued at three characters, so `http`, `code`, `div`, `class`, `span`, `pre` and `mark` were all live triggers.
 
-*Fixed:* split on tags and highlight only the text segments between them.
+_Fixed:_ split on tags and highlight only the text segments between them.
 
 ### Highlight cache collided across notes
 
 The cache key was `content.substring(0, 100) + query`, so two notes sharing their opening markup — a very ordinary thing for notes to do — were served each other's rendered body.
 
-*Fixed:* key on a hash of the full content.
+_Fixed:_ key on a hash of the full content.
 
 ### `initialize()` threw on every startup
 
-`+page.svelte` called `setupReactiveEffects()` during component initialisation (correct), and `appCoordinator.initialize()` called it *again* after `await`s inside `onMount`. Svelte 5's `validate_effect` throws `effect_orphan` when there is no active effect context — in production builds too.
+`+page.svelte` called `setupReactiveEffects()` during component initialisation (correct), and `appCoordinator.initialize()` called it _again_ after `await`s inside `onMount`. Svelte 5's `validate_effect` throws `effect_orphan` when there is no active effect context — in production builds too.
 
 `initialize()` therefore aborted before returning its cleanup function, so the seven Tauri event listeners and `configManager.cleanup()` never unregistered, and every launch logged an unhandled rejection. The coordinator test could not see this: it mocked `setupAppEffects` outright.
 
-*Fixed:* effects are registered only during component initialisation, and the test no longer mocks them — with the old code restored, four tests now fail with `effect_orphan`.
+_Fixed:_ effects are registered only during component initialisation, and the test no longer mocks them — with the old code restored, four tests now fail with `effect_orphan`.
 
 ### `bind:isDirty` threw a `TypeError` per keystroke
 
@@ -131,15 +131,15 @@ set isDirty($$value) { editorManager.isDirty = $$value; }
 
 `Editor`'s document-change handler invoked that setter on every keystroke, and assigning to a getter-only property in an ES module throws. It shipped because CodeMirror catches exceptions from update listeners and routes them to `logException` — so it was console noise, not a visible failure. The `onDirtyChange` callback the design wanted was already declared in `Props`, and never used.
 
-*Fixed:* dirty state flows through that callback; `editorManager.isDirty` stays the single derived source of truth.
+_Fixed:_ dirty state flows through that callback; `editorManager.isDirty` stays the single derived source of truth.
 
 ### Two competing sources of truth for the notes directory
 
-`AppState` held the config in an `RwLock`, but six call sites went around it and re-read `config.toml` from disk. Note paths were resolved from `AppState` while backup paths were resolved from the file, so editing the config without a refresh made every backup fail with *"Note path is not within configured notes directory"* — silently, because the rename path maps that error to "no backup needed". A regression test reproduces exactly that.
+`AppState` held the config in an `RwLock`, but six call sites went around it and re-read `config.toml` from disk. Note paths were resolved from `AppState` while backup paths were resolved from the file, so editing the config without a refresh made every backup fail with _"Note path is not within configured notes directory"_ — silently, because the rename path maps that error to "no backup needed". A regression test reproduces exactly that.
 
-There was a second smell in the same area: `load_config()` *wrote* a default config file when the read failed, so a path lookup could write to disk.
+There was a second smell in the same area: `load_config()` _wrote_ a default config file when the read failed, so a path lookup could write to disk.
 
-*Fixed:* the notes directory is passed explicitly, `AppState::notes_dir()` is the single accessor, and creating the config file is now an explicit startup step.
+_Fixed:_ the notes directory is passed explicitly, `AppState::notes_dir()` is the single accessor, and creating the config file is now an explicit startup step.
 
 ### The watcher went deaf for five seconds after every write
 
@@ -147,19 +147,19 @@ Every file operation incremented a global counter and spawned a detached thread 
 
 So saving one note made the app blind to every other note for at least five seconds: an external edit in that window got no backup and no index update, leaving the database stale — which is precisely the staleness that fed the duplicate-row bug. Rapid saves extended the window indefinitely, and every operation leaked a thread.
 
-*Fixed:* `SelfWriteRegistry` records what the app expects a path to look like after its own write, and the watcher drops an event only when the state on disk is still exactly that. Events for other paths are never suppressed, and an external edit that changes the bytes is recognised as external even inside the window — the time limit now bounds staleness, not correctness.
+_Fixed:_ `SelfWriteRegistry` records what the app expects a path to look like after its own write, and the watcher drops an event only when the state on disk is still exactly that. Events for other paths are never suppressed, and an external edit that changes the bytes is recognised as external even inside the window — the time limit now bounds staleness, not correctness.
 
 ### The tray's "Refresh Notes Cache" did nothing
 
 `let _ = refresh_cache(app_handle, app_state)` on an `async fn` builds a future and drops it without ever polling it. Found by enabling clippy as an error.
 
-*Fixed:* the refresh body takes an `&AppState`, and the tray handler spawns it and logs failures.
+_Fixed:_ the refresh body takes an `&AppState`, and the tray handler spawns it and logs failures.
 
 ### No CI ran the tests
 
 `publish.yml` fires on version tags. Nothing ran the 517 frontend tests, 129 Rust tests, eslint, svelte-check, clippy or either formatter automatically.
 
-*Fixed:* `ci.yml` runs all of them on push and pull request, with clippy gating at `-D warnings`.
+_Fixed:_ `ci.yml` runs all of them on push and pull request, with clippy gating at `-D warnings`.
 
 ---
 
@@ -206,5 +206,5 @@ CI runs all of the above. On Linux the Rust build needs the webkit/gtk stack —
 
 Two conventions worth keeping:
 
-- **Backend tests use `TestConfigOverride`**, which points the whole app at a temp directory and refuses to run if the resulting path is not clearly temporary. Tests that assert on the *real* config or notes paths must be marked `#[serial]` so they cannot observe another test's override.
+- **Backend tests use `TestConfigOverride`**, which points the whole app at a temp directory and refuses to run if the resulting path is not clearly temporary. Tests that assert on the _real_ config or notes paths must be marked `#[serial]` so they cannot observe another test's override.
 - **Prefer a test that fails against the old behaviour.** Every fix in this pass was verified by restoring the bug and watching the new test go red. Several of these defects survived because a test mocked the seam that was broken.
