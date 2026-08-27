@@ -92,28 +92,9 @@ pub fn validate_max_search_results(max_search_results: usize) -> AppResult<()> {
 }
 
 pub fn validate_shortcuts_config(shortcuts: &ShortcutsConfig) -> AppResult<()> {
-    validate_basic_shortcut_format(&shortcuts.create_note)?;
-    validate_basic_shortcut_format(&shortcuts.rename_note)?;
-    validate_basic_shortcut_format(&shortcuts.delete_note)?;
-    validate_basic_shortcut_format(&shortcuts.edit_note)?;
-    validate_basic_shortcut_format(&shortcuts.save_and_exit)?;
-    validate_basic_shortcut_format(&shortcuts.open_external)?;
-    validate_basic_shortcut_format(&shortcuts.open_folder)?;
-    validate_basic_shortcut_format(&shortcuts.refresh_cache)?;
-    validate_basic_shortcut_format(&shortcuts.scroll_up)?;
-    validate_basic_shortcut_format(&shortcuts.scroll_down)?;
-    validate_basic_shortcut_format(&shortcuts.up)?;
-    validate_basic_shortcut_format(&shortcuts.down)?;
-    validate_basic_shortcut_format(&shortcuts.navigate_previous)?;
-    validate_basic_shortcut_format(&shortcuts.navigate_next)?;
-    validate_basic_shortcut_format(&shortcuts.navigate_code_previous)?;
-    validate_basic_shortcut_format(&shortcuts.navigate_code_next)?;
-    validate_basic_shortcut_format(&shortcuts.navigate_link_previous)?;
-    validate_basic_shortcut_format(&shortcuts.navigate_link_next)?;
-    validate_basic_shortcut_format(&shortcuts.copy_current_section)?;
-    validate_basic_shortcut_format(&shortcuts.open_settings)?;
-    validate_basic_shortcut_format(&shortcuts.version_explorer)?;
-    validate_basic_shortcut_format(&shortcuts.recently_deleted)?;
+    for (_, binding) in shortcuts.entries() {
+        validate_basic_shortcut_format(binding)?;
+    }
 
     Ok(())
 }

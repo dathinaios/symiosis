@@ -238,46 +238,19 @@ fn sanitize_editor_config(config: &mut EditorConfig, defaults: &EditorConfig) {
 }
 
 fn sanitize_shortcuts_config(config: &mut ShortcutsConfig, defaults: &ShortcutsConfig) {
-    macro_rules! sanitize_shortcut {
-        ($field:ident) => {
-            if validate_basic_shortcut_format(&config.$field).is_err() {
-                log(
-                    "CONFIG_VALIDATION",
-                    &format!(
-                        "Invalid shortcut '{}' for {}. Using default '{}'.",
-                        config.$field,
-                        stringify!($field),
-                        defaults.$field
-                    ),
-                    None,
-                );
-                config.$field = defaults.$field.clone();
-            }
-        };
+    for (name, binding, default) in config.entries_with_defaults(defaults) {
+        if validate_basic_shortcut_format(binding).is_err() {
+            log(
+                "CONFIG_VALIDATION",
+                &format!(
+                    "Invalid shortcut '{}' for {}. Using default '{}'.",
+                    binding, name, default
+                ),
+                None,
+            );
+            *binding = default.to_string();
+        }
     }
-
-    sanitize_shortcut!(create_note);
-    sanitize_shortcut!(rename_note);
-    sanitize_shortcut!(delete_note);
-    sanitize_shortcut!(edit_note);
-    sanitize_shortcut!(save_and_exit);
-    sanitize_shortcut!(open_external);
-    sanitize_shortcut!(open_folder);
-    sanitize_shortcut!(refresh_cache);
-    sanitize_shortcut!(scroll_up);
-    sanitize_shortcut!(scroll_down);
-    sanitize_shortcut!(up);
-    sanitize_shortcut!(down);
-    sanitize_shortcut!(navigate_previous);
-    sanitize_shortcut!(navigate_next);
-    sanitize_shortcut!(navigate_code_previous);
-    sanitize_shortcut!(navigate_code_next);
-    sanitize_shortcut!(navigate_link_previous);
-    sanitize_shortcut!(navigate_link_next);
-    sanitize_shortcut!(copy_current_section);
-    sanitize_shortcut!(open_settings);
-    sanitize_shortcut!(version_explorer);
-    sanitize_shortcut!(recently_deleted);
 }
 
 fn sanitize_preferences_config(config: &mut PreferencesConfig, defaults: &PreferencesConfig) {
