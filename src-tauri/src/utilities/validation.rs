@@ -5,6 +5,7 @@ use crate::config::{
 };
 use crate::core::{AppError, AppResult};
 use crate::logging::log;
+use std::collections::HashMap;
 
 pub fn validate_config(config: &AppConfig) -> AppResult<()> {
     validate_notes_directory(&config.notes_directory)?;
@@ -92,8 +93,20 @@ pub fn validate_max_search_results(max_search_results: usize) -> AppResult<()> {
 }
 
 pub fn validate_shortcuts_config(shortcuts: &ShortcutsConfig) -> AppResult<()> {
-    for (_, binding) in shortcuts.entries() {
+    let mut assigned: HashMap<&str, &'static str> = HashMap::new();
+
+    for (name, binding) in shortcuts.entries() {
         validate_basic_shortcut_format(binding)?;
+
+        // Two actions on one chord is not a conflict the app can resolve: the
+        // keymap is an object literal, so the later entry wins and the earlier
+        // action simply appears broken, with nothing logged.
+        if let Some(existing) = assigned.insert(binding, name) {
+            return Err(AppError::ConfigLoad(format!(
+                "Shortcut '{}' is assigned to both '{}' and '{}'. Each shortcut must be unique.",
+                binding, existing, name
+            )));
+        }
     }
 
     Ok(())

@@ -617,3 +617,26 @@ fn test_load_custom_theme_file_reports_readable_errors() {
     let _ = std::fs::remove_file(&css);
     assert_eq!(loaded, "body { color: red; }");
 }
+
+#[test]
+fn test_duplicate_shortcuts_are_rejected() {
+    use crate::config::ShortcutsConfig;
+    use crate::utilities::validation::validate_shortcuts_config;
+
+    let defaults = ShortcutsConfig::default();
+    validate_shortcuts_config(&defaults).expect("shipped defaults must not collide");
+
+    // Exactly the shape that made navigate_code look broken: a config predating
+    // navigate_link_* binds Ctrl+h itself, while the absent link binding falls
+    // back to its default of Ctrl+h. Both land on one chord and the later entry
+    // in the keymap silently wins.
+    let mut clashing = ShortcutsConfig::default();
+    clashing.navigate_code_previous = clashing.navigate_link_previous.clone();
+
+    let err = validate_shortcuts_config(&clashing)
+        .expect_err("a chord bound to two actions must be rejected");
+    let message = err.to_string();
+
+    assert!(message.contains("navigate_code_previous"), "{}", message);
+    assert!(message.contains("navigate_link_previous"), "{}", message);
+}
