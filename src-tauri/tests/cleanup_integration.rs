@@ -13,7 +13,7 @@ fn main() {
     // Step 1: Run all unit tests (excluding this integration test) with parallel execution
     println!("Running unit tests...");
     let unit_test_result = Command::new("cargo")
-        .args(&["test", "--lib"])
+        .args(["test", "--lib"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()

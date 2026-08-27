@@ -56,7 +56,7 @@ pub fn validate_interface_config(interface: &InterfaceConfig) -> AppResult<()> {
 }
 
 pub fn validate_font_size(size: u16, context: &str) -> AppResult<()> {
-    if size < 8 || size > 72 {
+    if !(8..=72).contains(&size) {
         return Err(AppError::ConfigLoad(format!(
             "{} must be between 8 and 72 pixels",
             context

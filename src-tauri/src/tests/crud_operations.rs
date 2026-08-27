@@ -219,7 +219,7 @@ mod serial_tests {
         let note_names = vec!["first.md", "second.md", "third.txt", "folder/nested.md"];
 
         for name in &note_names {
-            test_create_new_note(name).expect(&format!("Should create {}", name));
+            test_create_new_note(name).unwrap_or_else(|_| panic!("Should create {}", name));
         }
 
         let notes = test_list_all_notes().expect("Should list notes");
@@ -541,15 +541,15 @@ mod serial_tests {
 
         // Create all notes
         for name in &note_names {
-            test_create_new_note(name).expect(&format!("Should create {}", name));
+            test_create_new_note(name).unwrap_or_else(|_| panic!("Should create {}", name));
             test_save_note_with_content_check(name, &format!("Content for {}", name), "")
-                .expect(&format!("Should save content for {}", name));
+                .unwrap_or_else(|_| panic!("Should save content for {}", name));
         }
 
         // Verify all notes exist and have correct content
         for name in &note_names {
-            let content =
-                test_get_note_content(name).expect(&format!("Should get content for {}", name));
+            let content = test_get_note_content(name)
+                .unwrap_or_else(|_| panic!("Should get content for {}", name));
             assert_eq!(
                 content,
                 format!("Content for {}", name),
@@ -564,7 +564,7 @@ mod serial_tests {
         test_save_note_with_content_check(
             "concurrent2.md",
             "Updated content",
-            &format!("Content for concurrent2.md"),
+            "Content for concurrent2.md",
         )
         .expect("Should update second note");
         test_delete_note("concurrent3.md").expect("Should delete third note");

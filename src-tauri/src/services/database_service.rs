@@ -82,10 +82,7 @@ fn ensure_notes_directory_exists(notes_dir: &Path) -> rusqlite::Result<()> {
                 Some(&e.to_string()),
             );
             return Err(rusqlite::Error::ToSqlConversionFailure(Box::new(
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to create notes directory: {}", e),
-                ),
+                std::io::Error::other(format!("Failed to create notes directory: {}", e)),
             )));
         }
     }
@@ -217,7 +214,7 @@ fn emit_progress_if_needed(
     total_files: usize,
 ) -> rusqlite::Result<()> {
     if let Some(app) = app_handle {
-        if index == 0 || (index + 1) % 10 == 0 || index == total_files - 1 {
+        if index == 0 || (index + 1).is_multiple_of(10) || index == total_files - 1 {
             let progress_msg = format!("Loading {} of {} notes...", index + 1, total_files);
             if let Err(e) = app.emit("db-loading-progress", progress_msg) {
                 log(
@@ -500,7 +497,7 @@ fn is_new_database(notes_dir: &Path) -> bool {
     !db_path.exists()
 }
 
-fn cleanup_database_if_no_config(app_state: &AppState) -> () {
+fn cleanup_database_if_no_config(app_state: &AppState) {
     if !crate::utilities::paths::get_config_path().exists() {
         if let Err(e) = with_db(app_state, |conn| {
             conn.execute("DELETE FROM notes", []).map_err(|e| e.into())

@@ -201,8 +201,10 @@ impl TestConfigOverride {
         let test_notes_path = notes_dir.to_string_lossy().to_string();
 
         // Create a new config with the test notes directory
-        let mut test_config = AppConfig::default();
-        test_config.notes_directory = test_notes_path.clone();
+        let test_config = AppConfig {
+            notes_directory: test_notes_path.clone(),
+            ..AppConfig::default()
+        };
 
         // Create a separate directory for the config file (not in the notes directory)
         let config_dir = temp_dir.path().join("config");
@@ -221,10 +223,11 @@ impl TestConfigOverride {
             && !config_path_str.contains("tmp")
             && !config_path_str.contains("/T/")
         {
-            return Err(format!(
+            return Err(
                 "CRITICAL SAFETY ERROR: Test config path is not in temp directory!"
-            )
-            .into());
+                    .to_string()
+                    .into(),
+            );
         }
 
         // SAFETY VALIDATION: Ensure notes directory is in temp directory
@@ -232,10 +235,11 @@ impl TestConfigOverride {
             && !test_notes_path.contains("tmp")
             && !test_notes_path.contains("/T/")
         {
-            return Err(format!(
+            return Err(
                 "CRITICAL SAFETY ERROR: Test notes path is not in temp directory!"
-            )
-            .into());
+                    .to_string()
+                    .into(),
+            );
         }
 
         // Use a unique test ID to avoid cross-test pollution
@@ -309,6 +313,9 @@ impl Drop for TestConfigOverride {
         std::env::remove_var("SYMIOSIS_TEST_MODE_ENABLED");
     }
 }
+
+#[cfg(test)]
+pub use test_command_wrappers::*;
 
 /// Test wrapper functions using tauri::test::mock_app()
 /// These use Tauri's official testing utilities to properly mock State
@@ -514,6 +521,3 @@ mod test_command_wrappers {
             .map(|notes| notes.into_iter().map(|n| n.filename).collect())
     }
 }
-
-#[cfg(test)]
-pub use test_command_wrappers::*;

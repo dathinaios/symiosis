@@ -45,7 +45,7 @@ fn test_fts_injection_attempts() {
                 assert!(
                     !error_msg.to_string().contains("SQL"),
                     "Error message leaked SQL details: {}",
-                    error_msg.to_string()
+                    error_msg
                 );
             }
         }

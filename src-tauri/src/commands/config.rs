@@ -77,7 +77,7 @@ fn scan_resource_themes(
     ui_themes: &mut Vec<String>,
     markdown_themes: &mut Vec<String>,
 ) {
-    if let Some(resource_dir) = app.path().resource_dir().ok() {
+    if let Ok(resource_dir) = app.path().resource_dir() {
         scan_ui_themes_in_directory(&resource_dir.join("css/ui-themes"), ui_themes);
         scan_markdown_themes_in_directory(
             &resource_dir.join("css/md_render_themes"),

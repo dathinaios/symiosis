@@ -25,10 +25,8 @@ pub fn list_all_notes(
         let rows = stmt.query_map([], |row| row.get(0))?;
 
         let mut results = Vec::new();
-        for r in rows {
-            if let Ok(filename) = r {
-                results.push(filename);
-            }
+        for filename in rows.flatten() {
+            results.push(filename);
         }
 
         Ok(results)
@@ -46,7 +44,7 @@ pub fn get_note_content(
             with_db(&app_state, |conn| {
                 let mut stmt = conn.prepare("SELECT content FROM notes WHERE filename = ?1")?;
                 let content = stmt
-                    .query_row(params![note_name], |row| Ok(row.get::<_, String>(0)?))
+                    .query_row(params![note_name], |row| row.get::<_, String>(0))
                     .map_err(|_| {
                         AppError::FileNotFound(format!("Note not found: {}", note_name))
                     })?;
@@ -411,7 +409,7 @@ fn create_rename_backup(
     }
 }
 
-fn ensure_parent_directory_exists(new_path: &std::path::PathBuf) -> AppResult<()> {
+fn ensure_parent_directory_exists(new_path: &std::path::Path) -> AppResult<()> {
     if let Some(parent) = new_path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -420,8 +418,8 @@ fn ensure_parent_directory_exists(new_path: &std::path::PathBuf) -> AppResult<()
 
 fn perform_atomic_file_rename(
     app_state: &tauri::State<crate::core::state::AppState>,
-    old_path: &std::path::PathBuf,
-    new_path: &std::path::PathBuf,
+    old_path: &std::path::Path,
+    new_path: &std::path::Path,
 ) -> AppResult<()> {
     app_state.self_writes.record_move(old_path, new_path);
     fs::rename(old_path, new_path).map_err(AppError::from)
@@ -440,13 +438,15 @@ fn handle_successful_rename(
             Ok(())
         }
         Err(e) => {
-            if let Err(_) = handle_database_recovery(
+            if handle_database_recovery(
                 app_state,
                 &format!("rename '{}' -> '{}'", old_name, new_name),
                 &e,
                 "Note renamed but database rebuild failed",
                 "Database rebuild failed. Note was renamed but may not be searchable.",
-            ) {
+            )
+            .is_err()
+            {
                 return Err(AppError::DatabaseRebuild(format!(
                     "Note renamed but database rebuild failed: {}",
                     e
@@ -459,8 +459,8 @@ fn handle_successful_rename(
 }
 
 fn handle_failed_rename(
-    old_path: &std::path::PathBuf,
-    new_path: &std::path::PathBuf,
+    old_path: &std::path::Path,
+    new_path: &std::path::Path,
     new_name: &str,
     backup_path: std::path::PathBuf,
     error: AppError,
@@ -494,7 +494,7 @@ fn update_database_filename(
     })
 }
 
-fn cleanup_backup_file(backup_path: &std::path::PathBuf) {
+fn cleanup_backup_file(backup_path: &std::path::Path) {
     if let Err(e) = fs::remove_file(backup_path) {
         log(
             "BACKUP_CLEANUP",
@@ -512,7 +512,7 @@ fn log_successful_rename(old_name: &str, new_name: &str) {
     );
 }
 
-fn attempt_backup_restore(backup_path: &std::path::PathBuf, old_path: &std::path::PathBuf) {
+fn attempt_backup_restore(backup_path: &std::path::Path, old_path: &std::path::Path) {
     if let Err(restore_err) = fs::rename(backup_path, old_path) {
         log(
             "FILE_OPERATION",
@@ -523,8 +523,8 @@ fn attempt_backup_restore(backup_path: &std::path::PathBuf, old_path: &std::path
 }
 
 fn perform_atomic_rename_with_database(
-    old_path: &std::path::PathBuf,
-    new_path: &std::path::PathBuf,
+    old_path: &std::path::Path,
+    new_path: &std::path::Path,
     old_name: &str,
     new_name: &str,
     backup_path: std::path::PathBuf,
@@ -551,7 +551,7 @@ fn perform_atomic_rename_with_database(
 fn handle_database_only_rename(
     old_name: &str,
     new_name: &str,
-    new_path: &std::path::PathBuf,
+    new_path: &std::path::Path,
     app_state: &tauri::State<crate::core::state::AppState>,
 ) -> AppResult<()> {
     if new_path.exists() {
@@ -562,7 +562,7 @@ fn handle_database_only_rename(
             )?;
             Ok(())
         }) {
-            Ok(_) => return Ok(()),
+            Ok(_) => Ok(()),
             Err(e) => {
                 let _ = handle_database_recovery(
                     app_state,
@@ -571,13 +571,13 @@ fn handle_database_only_rename(
                     "Database recovery completed",
                     "Failed to recreate database during error recovery",
                 );
-                return Ok(());
+                Ok(())
             }
         }
     } else {
-        return Err(AppError::FileNotFound(format!(
+        Err(AppError::FileNotFound(format!(
             "Note '{}' not found",
             old_name
-        )));
+        )))
     }
 }

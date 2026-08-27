@@ -10,8 +10,7 @@ use tempfile::TempDir;
 
 /// Test helper to create a temporary notes directory and override the config
 fn setup_test_notes_dir() -> TempDir {
-    let temp_dir = TempDir::new().expect("Should create temp directory");
-    temp_dir
+    TempDir::new().expect("Should create temp directory")
 }
 
 #[test]

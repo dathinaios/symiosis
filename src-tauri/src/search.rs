@@ -149,16 +149,15 @@ impl HybridSearcher {
                 match_type,
                 modified: candidate.modified,
             })
-        } else if let Some(score) = self.score_content_match(&candidate.content, &query_lower) {
-            Some(SearchResult {
-                filename: candidate.filename.clone(),
-                title: candidate.title.clone(),
-                score,
-                match_type: MatchType::Content,
-                modified: candidate.modified,
-            })
         } else {
-            None
+            self.score_content_match(&candidate.content, &query_lower)
+                .map(|score| SearchResult {
+                    filename: candidate.filename.clone(),
+                    title: candidate.title.clone(),
+                    score,
+                    match_type: MatchType::Content,
+                    modified: candidate.modified,
+                })
         }
     }
 

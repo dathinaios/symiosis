@@ -42,32 +42,53 @@ fn test_concurrent_config_access() {
 fn test_concurrent_validation() {
     // Test that validation functions are thread-safe
     let test_configs = Arc::new(vec![
-        {
-            let mut config = AppConfig::default();
-            config.notes_directory = "/tmp/test1".to_string();
-            config.preferences.max_search_results = 100;
-            config.global_shortcut = "Ctrl+Shift+N".to_string();
-            config.editor.mode = "basic".to_string();
-            config.interface.markdown_render_theme = "modern-dark".to_string();
-            config
+        AppConfig {
+            notes_directory: "/tmp/test1".to_string(),
+            preferences: PreferencesConfig {
+                max_search_results: 100,
+            },
+            global_shortcut: "Ctrl+Shift+N".to_string(),
+            editor: EditorConfig {
+                mode: "basic".to_string(),
+                ..EditorConfig::default()
+            },
+            interface: InterfaceConfig {
+                markdown_render_theme: "modern-dark".to_string(),
+                ..InterfaceConfig::default()
+            },
+            ..AppConfig::default()
         },
-        {
-            let mut config = AppConfig::default();
-            config.notes_directory = "/tmp/test2".to_string();
-            config.preferences.max_search_results = 50;
-            config.global_shortcut = "Alt+Space".to_string();
-            config.editor.mode = "vim".to_string();
-            config.interface.markdown_render_theme = "gruvbox-dark".to_string();
-            config
+        AppConfig {
+            notes_directory: "/tmp/test2".to_string(),
+            preferences: PreferencesConfig {
+                max_search_results: 50,
+            },
+            global_shortcut: "Alt+Space".to_string(),
+            editor: EditorConfig {
+                mode: "vim".to_string(),
+                ..EditorConfig::default()
+            },
+            interface: InterfaceConfig {
+                markdown_render_theme: "gruvbox-dark".to_string(),
+                ..InterfaceConfig::default()
+            },
+            ..AppConfig::default()
         },
-        {
-            let mut config = AppConfig::default();
-            config.notes_directory = "/invalid".to_string();
-            config.preferences.max_search_results = 0; // Invalid
-            config.global_shortcut = "InvalidShortcut".to_string();
-            config.editor.mode = "invalid_mode".to_string();
-            config.interface.markdown_render_theme = "invalid_theme".to_string();
-            config
+        AppConfig {
+            notes_directory: "/invalid".to_string(),
+            preferences: PreferencesConfig {
+                max_search_results: 0, // Invalid
+            },
+            global_shortcut: "InvalidShortcut".to_string(),
+            editor: EditorConfig {
+                mode: "invalid_mode".to_string(),
+                ..EditorConfig::default()
+            },
+            interface: InterfaceConfig {
+                markdown_render_theme: "invalid_theme".to_string(),
+                ..InterfaceConfig::default()
+            },
+            ..AppConfig::default()
         },
     ]);
 
@@ -273,8 +294,8 @@ fn test_concurrent_shortcut_parsing() {
         .map(|(i, shortcut)| {
             let results = Arc::clone(&results);
             thread::spawn(move || {
-                let parse_result = parse_shortcut(&shortcut);
-                let validation_result = validate_shortcut_format(&shortcut);
+                let parse_result = parse_shortcut(shortcut);
+                let validation_result = validate_shortcut_format(shortcut);
 
                 let mut results = results.lock().unwrap();
                 results.push((i, parse_result.is_some(), validation_result.is_ok()));

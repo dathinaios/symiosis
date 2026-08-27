@@ -52,11 +52,10 @@ impl SelfWriteRegistry {
 
     /// Record a move: `from` disappears, `to` gains `from`'s current content.
     pub fn record_move(&self, from: &Path, to: &Path) {
-        match std::fs::read_to_string(from) {
-            Ok(content) => self.record_write(to, &content),
-            // Unreadable source: leave `to` unrecorded so the watcher treats the
-            // new file as an external change and indexes it from disk.
-            Err(_) => {}
+        // An unreadable source leaves `to` unrecorded, so the watcher treats the
+        // new file as an external change and indexes it from disk.
+        if let Ok(content) = std::fs::read_to_string(from) {
+            self.record_write(to, &content);
         }
         self.record_removal(from);
     }

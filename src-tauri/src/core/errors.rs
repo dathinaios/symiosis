@@ -88,8 +88,6 @@ impl From<String> for AppError {
             AppError::FilePermission(err)
         } else if err.contains("not found") || err.contains("No such file") {
             AppError::FileNotFound(err)
-        } else if err.contains("backup") || err.contains("temp") {
-            AppError::FileWrite(err)
         } else {
             AppError::FileWrite(err)
         };

@@ -88,5 +88,4 @@ fn test_cleanup_all_tmp_directories() {
     cleanup_all_tmp_directories().expect("Should cleanup all tmp directories");
 
     println!("Manual cleanup completed!");
-    assert!(true, "Manual cleanup completed");
 }

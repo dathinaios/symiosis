@@ -6,8 +6,7 @@ pub fn extract_title_from_filename(filename: &str) -> String {
         .trim_end_matches(".md")
         .trim_end_matches(".txt")
         .trim_end_matches(".markdown")
-        .replace('_', " ")
-        .replace('-', " ")
+        .replace(['_', '-'], " ")
 }
 
 pub fn extract_title_from_content(content: &str) -> Option<String> {

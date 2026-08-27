@@ -131,7 +131,7 @@ fn test_get_default_notes_dir_structure() {
     );
 
     // Test that directory can be created (tests real filesystem behavior)
-    if let Err(e) = std::fs::create_dir_all(&notes_path) {
+    if let Err(e) = std::fs::create_dir_all(notes_path) {
         if e.kind() != std::io::ErrorKind::PermissionDenied {
             panic!("Should be able to create notes directory: {}", e);
         }

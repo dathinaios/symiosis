@@ -14,7 +14,7 @@ fn test_default_config_values() {
     assert_eq!(config.global_shortcut, "Ctrl+Shift+N");
     assert_eq!(config.editor.mode, "basic");
     assert_eq!(config.interface.markdown_render_theme, "modern-dark");
-    assert_eq!(config.interface.show_in_dock, false);
+    assert!(!config.interface.show_in_dock);
     // notes_directory should be ~/Documents/Notes or ./notes fallback
     assert!(config.notes_directory.contains("Notes") || config.notes_directory == "./notes");
 }
@@ -305,8 +305,8 @@ show_line_numbers = false
     let config = load_config_from_content(invalid_editor_toml);
 
     // Valid fields should be preserved
-    assert_eq!(config.editor.word_wrap, true);
-    assert_eq!(config.editor.show_line_numbers, false);
+    assert!(config.editor.word_wrap);
+    assert!(!config.editor.show_line_numbers);
 
     // Invalid fields should fall back to defaults
     assert_eq!(config.editor.mode, "basic"); // default
@@ -356,9 +356,9 @@ create_note = "Alt+Enter"
     // Empty sections should use defaults
     assert_eq!(config.editor.mode, "basic");
     assert_eq!(config.editor.theme, "gruvbox-dark");
-    assert_eq!(config.editor.word_wrap, true);
+    assert!(config.editor.word_wrap);
     assert_eq!(config.editor.tab_size, 2);
-    assert_eq!(config.editor.show_line_numbers, true);
+    assert!(config.editor.show_line_numbers);
 
     // Unspecified shortcuts should use defaults
     assert_eq!(config.shortcuts.rename_note, "Ctrl+m");
@@ -443,7 +443,7 @@ max_search_results = 250
     assert_eq!(config.interface.markdown_render_theme, "modern-dark");
     assert_eq!(config.editor.mode, "vim");
     assert_eq!(config.editor.theme, "nord");
-    assert_eq!(config.editor.word_wrap, false);
+    assert!(!config.editor.word_wrap);
     assert_eq!(config.editor.tab_size, 4);
     assert_eq!(config.shortcuts.create_note, "Ctrl+Enter");
     assert_eq!(config.shortcuts.rename_note, "Ctrl+r");
@@ -459,7 +459,7 @@ fn test_show_in_dock_parsed_from_config() {
 show_in_dock = true
 "#,
     );
-    assert_eq!(enabled.interface.show_in_dock, true);
+    assert!(enabled.interface.show_in_dock);
 
     let omitted = load_config_from_content(
         r#"
@@ -467,7 +467,7 @@ show_in_dock = true
 ui_theme = "gruvbox-dark"
 "#,
     );
-    assert_eq!(omitted.interface.show_in_dock, false);
+    assert!(!omitted.interface.show_in_dock);
 }
 
 /// Note paths and backup paths must both derive from the configuration the app
@@ -496,8 +496,10 @@ fn test_backups_follow_the_running_config_not_the_file_on_disk() {
     // running AppState still holds the original notes directory.
     let other_dir = notes_dir.parent().unwrap().join("_tmp_elsewhere");
     std::fs::create_dir_all(&other_dir).expect("Should create the decoy directory");
-    let mut drifted = AppConfig::default();
-    drifted.notes_directory = other_dir.to_string_lossy().to_string();
+    let drifted = AppConfig {
+        notes_directory: other_dir.to_string_lossy().to_string(),
+        ..AppConfig::default()
+    };
     std::fs::write(
         get_config_path(),
         toml::to_string(&drifted).expect("Should serialize config"),

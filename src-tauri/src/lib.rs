@@ -12,7 +12,6 @@ mod watcher;
 
 use commands::*;
 use config::{load_config_with_first_run_info, parse_shortcut};
-use core::errors::AppError;
 use core::state::AppState;
 use logging::log;
 use services::database_service;
@@ -177,11 +176,9 @@ fn setup_global_shortcuts(app: &tauri::App) -> Result<(), Box<dyn std::error::Er
             .plugin(
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_handler(move |app, shortcut, event| {
-                        if event.state() == ShortcutState::Pressed {
-                            if shortcut == &main_shortcut {
-                                let app_handle = app.clone();
-                                handle_main_window_toggle(app_handle);
-                            }
+                        if event.state() == ShortcutState::Pressed && shortcut == &main_shortcut {
+                            let app_handle = app.clone();
+                            handle_main_window_toggle(app_handle);
                         }
                     })
                     .build(),
@@ -205,18 +202,15 @@ fn setup_app_components(app: &mut tauri::App) -> Result<(), Box<dyn std::error::
 }
 
 fn handle_window_events(window: &tauri::Window, event: &tauri::WindowEvent) {
-    match event {
-        tauri::WindowEvent::CloseRequested { api, .. } => {
-            if let Err(e) = window.hide() {
-                log(
-                    "WINDOW_OPERATION",
-                    "Failed to hide window. Continuing anyway.",
-                    Some(&e.to_string()),
-                );
-            }
-            api.prevent_close();
+    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        if let Err(e) = window.hide() {
+            log(
+                "WINDOW_OPERATION",
+                "Failed to hide window. Continuing anyway.",
+                Some(&e.to_string()),
+            );
         }
-        _ => {}
+        api.prevent_close();
     }
 }
 
@@ -269,7 +263,7 @@ fn handle_app_build_error(e: tauri::Error) -> ! {
     std::process::exit(1);
 }
 
-fn run_app_with_platform_config(mut app: tauri::App) {
+fn run_app_with_platform_config(app: tauri::App) {
     #[cfg(target_os = "macos")]
     app.set_activation_policy(if DOCK_VISIBLE.load(Ordering::Relaxed) {
         tauri::ActivationPolicy::Regular
@@ -277,11 +271,10 @@ fn run_app_with_platform_config(mut app: tauri::App) {
         tauri::ActivationPolicy::Accessory
     });
 
-    app.run(|_app_handle, event| match event {
-        tauri::RunEvent::ExitRequested { api, .. } => {
+    app.run(|_app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { api, .. } = event {
             api.prevent_exit();
         }
-        _ => {}
     });
 }
 
@@ -294,9 +287,23 @@ fn handle_tray_menu_event(app: &tauri::AppHandle, event: &tauri::menu::MenuEvent
             }
         }
         "refresh" => {
+            // `refresh_cache` is async: the previous `let _ = refresh_cache(..)`
+            // dropped the future without polling it, so this menu item did
+            // nothing at all. Spawn it instead.
             let app_handle = app.app_handle().clone();
             if let Some(app_state) = app_handle.try_state::<AppState>() {
-                let _ = refresh_cache(app_handle.clone(), app_state);
+                let state = app_state.inner().clone();
+                let handle = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = commands::system::refresh_cache_for_state(&handle, &state).await
+                    {
+                        log(
+                            "TRAY_REFRESH",
+                            "Refresh from the tray menu failed",
+                            Some(&e.to_string()),
+                        );
+                    }
+                });
             }
         }
         "settings" => {
@@ -401,7 +408,7 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     };
     let dock_item = MenuItem::with_id(app, "toggle_dock", dock_text, true, None::<&str>)?;
 
-    if let Err(_) = DOCK_MENU_ITEM.set(dock_item.clone()) {
+    if DOCK_MENU_ITEM.set(dock_item.clone()).is_err() {
         log(
             "TRAY_SETUP",
             "Failed to store dock menu item reference",

@@ -1,6 +1,6 @@
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -173,7 +173,7 @@ fn handle_file_system_event(
     app_state: &Arc<crate::core::state::AppState>,
     debounced_watcher: &Arc<DebouncedWatcher>,
     app_handle: &AppHandle,
-    canonical_notes_dir: &PathBuf,
+    canonical_notes_dir: &Path,
 ) {
     #[cfg(debug_assertions)]
     log(
@@ -229,12 +229,12 @@ fn process_file_event_async(
     paths: &[PathBuf],
     app_handle: &AppHandle,
     app_state: &Arc<crate::core::state::AppState>,
-    canonical_notes_dir: &PathBuf,
+    canonical_notes_dir: &Path,
 ) {
     let app_handle_for_refresh = app_handle.clone();
     let paths_to_update = paths.to_vec();
     let app_state_for_task = app_state.clone();
-    let canonical_dir = canonical_notes_dir.clone();
+    let canonical_dir = canonical_notes_dir.to_path_buf();
 
     tauri::async_runtime::spawn(async move {
         #[cfg(debug_assertions)]
@@ -279,43 +279,39 @@ fn should_ignore_file(filename: &str) -> bool {
 }
 
 fn create_backup_if_content_changed(
-    path: &PathBuf,
+    path: &Path,
     filename: &str,
     new_content: &str,
     app_state: &Arc<crate::core::state::AppState>,
 ) {
-    let _ = with_db(app_state, |conn| {
+    with_db(app_state, |conn| {
         let mut stmt = conn.prepare("SELECT content FROM notes WHERE filename = ?1")?;
-        match stmt.query_row(rusqlite::params![filename], |row| row.get::<_, String>(0)) {
-            Ok(old_content) => {
-                if old_content != new_content {
-                    match create_versioned_backup(
-                        &app_state.notes_dir(),
-                        path,
-                        BackupType::ExternalChange,
-                        Some(&old_content),
-                    ) {
-                        Ok(backup_path) => {
-                            log(
-                                "FILE_BACKUP",
-                                "Created external change backup",
-                                Some(&backup_path.display().to_string()),
-                            );
-                        }
-                        Err(e) => {
-                            log(
-                                "FILE_BACKUP",
-                                &format!(
-                                    "Failed to create external change backup for {}",
-                                    filename
-                                ),
-                                Some(&e.to_string()),
-                            );
-                        }
+        if let Ok(old_content) =
+            stmt.query_row(rusqlite::params![filename], |row| row.get::<_, String>(0))
+        {
+            if old_content != new_content {
+                match create_versioned_backup(
+                    &app_state.notes_dir(),
+                    path,
+                    BackupType::ExternalChange,
+                    Some(&old_content),
+                ) {
+                    Ok(backup_path) => {
+                        log(
+                            "FILE_BACKUP",
+                            "Created external change backup",
+                            Some(&backup_path.display().to_string()),
+                        );
+                    }
+                    Err(e) => {
+                        log(
+                            "FILE_BACKUP",
+                            &format!("Failed to create external change backup for {}", filename),
+                            Some(&e.to_string()),
+                        );
                     }
                 }
             }
-            Err(_) => {}
         }
         Ok(())
     })
@@ -377,7 +373,7 @@ fn emit_cache_refresh_notification(app_handle: &AppHandle) {
 
 fn process_file_paths(
     paths: &[PathBuf],
-    canonical_notes_dir: &PathBuf,
+    canonical_notes_dir: &Path,
     app_state: &Arc<crate::core::state::AppState>,
 ) {
     for path in paths {

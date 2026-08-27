@@ -37,6 +37,16 @@ pub async fn refresh_cache(
     result.map_err(|e: crate::core::AppError| e.to_string())
 }
 
+/// The same refresh the `refresh_cache` command performs, callable with an
+/// owned `AppState`. The tray menu needs this: it has no `tauri::State` to
+/// borrow, and its handler is not async.
+pub async fn refresh_cache_for_state(
+    app: &AppHandle,
+    app_state: &crate::core::state::AppState,
+) -> Result<(), crate::core::AppError> {
+    perform_cache_refresh(app, app_state).await
+}
+
 async fn perform_notes_initialization(
     app: &AppHandle,
     app_state: &tauri::State<'_, crate::core::state::AppState>,
@@ -59,7 +69,7 @@ async fn perform_notes_initialization(
 
 async fn perform_cache_refresh(
     app: &AppHandle,
-    app_state: &tauri::State<'_, crate::core::state::AppState>,
+    app_state: &crate::core::state::AppState,
 ) -> Result<(), crate::core::AppError> {
     emit_with_logging(app, "db-loading-start", "Refreshing notes...");
     emit_with_logging(app, "db-loading-progress", "Loading settings...");
@@ -118,7 +128,7 @@ fn handle_initialization_result(
 
 fn handle_config_reload(
     app: &AppHandle,
-    app_state: &tauri::State<'_, crate::core::state::AppState>,
+    app_state: &crate::core::state::AppState,
 ) -> Result<ConfigReloadResult, crate::core::AppError> {
     reload_config(&app_state.config, Some(app.clone())).map_err(|e| {
         emit_with_logging(
@@ -132,7 +142,7 @@ fn handle_config_reload(
 
 fn handle_database_connection_refresh(
     app: &AppHandle,
-    app_state: &tauri::State<'_, crate::core::state::AppState>,
+    app_state: &crate::core::state::AppState,
     reload_result: ConfigReloadResult,
 ) -> Result<(), crate::core::AppError> {
     if reload_result == ConfigReloadResult::NotesDirChanged {
@@ -171,9 +181,9 @@ fn emit_cache_refresh_progress(app: &AppHandle) {
 }
 
 async fn execute_cache_refresh_task(
-    app_state: &tauri::State<'_, crate::core::state::AppState>,
+    app_state: &crate::core::state::AppState,
 ) -> Result<Result<(), crate::core::AppError>, crate::core::AppError> {
-    let app_state_clone = app_state.inner().clone();
+    let app_state_clone = app_state.clone();
 
     tokio::task::spawn_blocking(move || {
         with_db_mut(&app_state_clone, |conn| {
@@ -187,7 +197,7 @@ async fn execute_cache_refresh_task(
 
 async fn handle_cache_refresh_result(
     app: &AppHandle,
-    app_state: &tauri::State<'_, crate::core::state::AppState>,
+    app_state: &crate::core::state::AppState,
     result: Result<(), crate::core::AppError>,
 ) -> Result<(), crate::core::AppError> {
     match result {
@@ -201,7 +211,7 @@ async fn handle_cache_refresh_result(
 
 async fn handle_cache_refresh_failure(
     app: &AppHandle,
-    app_state: &tauri::State<'_, crate::core::state::AppState>,
+    app_state: &crate::core::state::AppState,
     original_error: crate::core::AppError,
 ) -> Result<(), crate::core::AppError> {
     emit_with_logging(
