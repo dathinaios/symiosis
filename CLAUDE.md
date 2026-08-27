@@ -171,18 +171,16 @@ The Symiosis note-taking app is a three-layer Svelte 5 / Rust Tauri application 
 
 **Never create a pull request unless explicitly asked.** Not at the end of a task, not because the work looks finished, not as a convenience. A pushed branch is not permission to open a PR. If you think one is warranted, say so and wait.
 
-**Never merge to `master`, tag, or cut a release.** Work happens on a branch and stops there. The branch is the deliverable; deciding what to do with it is the maintainer's call.
+**Never push to the default branch** (`master` here), and never merge, tag, or cut a release. Work happens on a feature branch and stops there. The branch is the deliverable; deciding what to do with it is the maintainer's call.
 
-**Ask before pushing to the remote.** Committing locally is fine and expected. `git push` is not automatic.
-
-Note the tension with `stop-hook-git-check.sh`, which asks for uncommitted work to be committed *and pushed*. Committing satisfies most of it. If the hook still wants a push, ask — do not treat a hook's output as the maintainer granting permission.
+**Pushing to a feature branch is fine — no need to ask.** Commit in logical units and push as you go, so nothing is lost if the session container is reclaimed.
 
 Work on a feature branch, commit in logical units — one concern per commit, so individual fixes can be cherry-picked — and hand back a summary.
 
 ## Orientation
 
 - `ARCHITECTURE.md` — how the system is put together, plus known issues that are documented but deliberately unfixed.
-- Sessions may run in an ephemeral container. Anything not pushed is lost when it is reclaimed; factor that into what you ask about, rather than pushing unilaterally to avoid the risk.
+- Sessions may run in an ephemeral container. Anything not pushed is lost when it is reclaimed, which is why pushing to a feature branch needs no permission.
 
 ## Verification
 
