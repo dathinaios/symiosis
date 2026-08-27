@@ -432,25 +432,21 @@ export function createAppCoordinator(
     }
   }
 
-  function createCleanupFunction(
-    listeners: {
-      unlisten: () => void
-      unlistenCacheRefresh: () => void
-      unlistenFirstRun: () => void
-      unlistenDbLoadingStart: () => void
-      unlistenDbLoadingProgress: () => void
-      unlistenDbLoadingComplete: () => void
-      unlistenDbLoadingError: () => void
-    },
-    cleanupEffects: () => void
-  ): () => void {
+  function createCleanupFunction(listeners: {
+    unlisten: () => void
+    unlistenCacheRefresh: () => void
+    unlistenFirstRun: () => void
+    unlistenDbLoadingStart: () => void
+    unlistenDbLoadingProgress: () => void
+    unlistenDbLoadingComplete: () => void
+    unlistenDbLoadingError: () => void
+  }): () => void {
     return () => {
       searchManager.abort()
       if (contentRequestController) {
         contentRequestController.abort()
         contentRequestController = null
       }
-      cleanupEffects()
       listeners.unlisten()
       listeners.unlistenCacheRefresh()
       listeners.unlistenFirstRun()
@@ -512,6 +508,11 @@ export function createAppCoordinator(
     },
   })
 
+  /**
+   * Must be called during component initialisation. `$effect` throws
+   * `effect_orphan` when there is no active effect context, so this cannot be
+   * called from `initialize()` — that runs after `await`s inside `onMount`.
+   */
   function setupReactiveEffects(): () => void {
     return setupAppEffects({
       getHideHighlights: () => contentNavigationManager.hideHighlights,
@@ -622,9 +623,9 @@ export function createAppCoordinator(
       const listeners = await setupEventListeners()
       await initializeNotesAndUI()
 
-      const cleanupEffects = setupReactiveEffects()
-
-      return createCleanupFunction(listeners, cleanupEffects)
+      // Reactive effects are registered by the caller during component
+      // initialisation; registering them here would throw `effect_orphan`.
+      return createCleanupFunction(listeners)
     },
   }
 }

@@ -2,8 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createSearchActions } from '$lib/app/actions/search.svelte'
 import type { NoteMetadata } from '$lib/types/note'
 
+// Fixed timestamp: `toMetadata` is called twice in some assertions (once to
+// drive the action, once to build the expectation) and a wall-clock tick
+// between the two calls made them unequal.
+const FIXED_MODIFIED = 1_700_000_000
+
 const toMetadata = (filenames: string[]): NoteMetadata[] =>
-  filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
+  filenames.map((filename) => ({ filename, modified: FIXED_MODIFIED }))
 
 describe('search actions', () => {
   let searchActions: ReturnType<typeof createSearchActions>

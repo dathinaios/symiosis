@@ -54,9 +54,13 @@ Shows highlighted content or renders the CodeMirror editor.
 <div class="note-preview">
   {#if appState.selectedNote}
     {#if editorManager.isEditMode}
+      <!--
+        Neither `value` nor the dirty flag is bound: `editorManager` exposes both
+        as read-only getters (`isDirty` is derived from editContent vs
+        originalContent). Content flows back through `onContentChange`.
+      -->
       <Editor
-        bind:value={editorManager.editContent}
-        bind:isDirty={editorManager.isDirty}
+        value={editorManager.editContent}
         filename={appState.selectedNote}
         nearestHeaderText={editorManager.nearestHeaderText}
         onContentChange={editorManager.updateContent}

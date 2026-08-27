@@ -8,8 +8,12 @@ import type { AppState } from '../../../lib/app/actions/keyboard.svelte'
 import type { ConfigManager } from '../../../lib/core/configManager.svelte'
 import type { NoteMetadata } from '../../../lib/types/note'
 
+// Fixed timestamp keeps note metadata comparable across separate
+// constructions within a single assertion.
+const FIXED_MODIFIED = 1_700_000_000
+
 const toMetadata = (filenames: string[]): NoteMetadata[] =>
-  filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
+  filenames.map((filename) => ({ filename, modified: FIXED_MODIFIED }))
 
 describe('Keyboard Shortcut Isolation', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

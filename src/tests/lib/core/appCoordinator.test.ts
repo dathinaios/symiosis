@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mockInvoke, resetAllMocks } from '../../test-utils'
 import type { NoteMetadata } from '../../../lib/types/note'
 
+const FIXED_MODIFIED = 1_700_000_000
+
 const toMetadata = (filenames: string[]): NoteMetadata[] =>
-  filenames.map((filename) => ({ filename, modified: Date.now() / 1000 }))
+  filenames.map((filename) => ({ filename, modified: FIXED_MODIFIED }))
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: mockInvoke,
@@ -17,9 +19,9 @@ vi.mock('svelte', () => ({
   tick: vi.fn(() => Promise.resolve()),
 }))
 
-vi.mock('../../../lib/app/effects/app.svelte', () => ({
-  setupAppEffects: vi.fn(() => vi.fn()), // Returns a mock cleanup function
-}))
+// NOTE: `setupAppEffects` is deliberately NOT mocked. It calls `$effect`, which
+// throws `effect_orphan` outside of component initialisation — mocking it here
+// previously hid the fact that `initialize()` was calling it after `await`s.
 
 const mockNoteService = {
   getRawContent: vi.fn(),
@@ -101,9 +103,9 @@ describe('appCoordinator', () => {
 
       // Simulate notes being loaded via searchManager
       appCoordinator.managers.searchManager.setFilteredNotes([
-        { filename: 'note1.md', modified: Date.now() / 1000 },
-        { filename: 'note2.md', modified: Date.now() / 1000 },
-        { filename: 'note3.md', modified: Date.now() / 1000 },
+        { filename: 'note1.md', modified: FIXED_MODIFIED },
+        { filename: 'note2.md', modified: FIXED_MODIFIED },
+        { filename: 'note3.md', modified: FIXED_MODIFIED },
       ])
 
       // The derived selectedNote should return the first note
@@ -133,8 +135,8 @@ describe('appCoordinator', () => {
     it('should reset selection when notes become empty', () => {
       // Start with notes
       appCoordinator.managers.searchManager.setFilteredNotes([
-        { filename: 'note1.md', modified: Date.now() / 1000 },
-        { filename: 'note2.md', modified: Date.now() / 1000 },
+        { filename: 'note1.md', modified: FIXED_MODIFIED },
+        { filename: 'note2.md', modified: FIXED_MODIFIED },
       ])
       appCoordinator.managers.focusManager.setSelectedIndex(1)
       expect(appCoordinator.selectedNote).toBe('note2.md')
@@ -237,6 +239,15 @@ describe('appCoordinator', () => {
       expect(typeof appCoordinator.initialize).toBe('function')
       const cleanup = await appCoordinator.initialize()
       expect(typeof cleanup).toBe('function')
+    })
+
+    it('should not register reactive effects from initialize()', async () => {
+      // `initialize()` runs after `await`s inside onMount, where there is no
+      // active effect context. Registering `$effect` there throws
+      // `effect_orphan` and aborts before the cleanup function is returned.
+      await expect(appCoordinator.initialize()).resolves.toBeInstanceOf(
+        Function
+      )
     })
 
     it('should populate filteredNotes on initialization when config exists', async () => {

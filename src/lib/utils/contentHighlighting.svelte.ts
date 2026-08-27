@@ -18,6 +18,20 @@ function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+/**
+ * FNV-1a over the whole string. Used for cache keys: a content prefix is not
+ * enough, because two notes that share their opening markup would collide and
+ * be served each other's highlighted body.
+ */
+function hashString(text: string): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return `${text.length}:${hash.toString(36)}`
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -52,12 +66,33 @@ function evictLRUEntry(): void {
   }
 }
 
+/**
+ * Wrap matches in `<mark>` without touching HTML markup.
+ *
+ * The content is rendered HTML, so a naive replace over the whole string also
+ * matches inside tag names and attribute values — searching "http" would rewrite
+ * an `href`, and searching "code" would destroy a `<pre><code>` block. Splitting
+ * on tags first and rewriting only the text segments keeps the markup intact.
+ */
+function markTextOutsideTags(content: string, query: string): string {
+  const regex = new RegExp(`(${escapeRegex(query)})`, 'gi')
+
+  return content
+    .split(/(<[^>]*>)/)
+    .map((segment) =>
+      segment.startsWith('<')
+        ? segment
+        : segment.replace(regex, '<mark class="highlight">$1</mark>')
+    )
+    .join('')
+}
+
 function highlightMatches(content: string, query: string): string {
   if (!query.trim()) {
     return content
   }
 
-  const key = `${content.substring(0, 100)}:${query}`
+  const key = `${hashString(content)}:${query}`
   const cached = highlightCache.get(key)
 
   if (cached) {
@@ -71,9 +106,7 @@ function highlightMatches(content: string, query: string): string {
     evictLRUEntry()
   }
 
-  const escapedQuery = escapeRegex(query)
-  const regex = new RegExp(`(${escapedQuery})`, 'gi')
-  const result = content.replace(regex, '<mark class="highlight">$1</mark>')
+  const result = markTextOutsideTags(content, query)
 
   highlightCache.set(key, {
     result,

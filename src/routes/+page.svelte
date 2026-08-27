@@ -50,7 +50,9 @@ Composes all UI components and provides keyboard event handling for the entire a
     let cleanup: (() => void) | undefined
     ;(async () => {
       cleanup = await appCoordinator.initialize()
-    })()
+    })().catch((e) => {
+      console.error('Failed to initialize application:', e)
+    })
     return () => cleanup?.()
   })
 </script>

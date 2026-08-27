@@ -92,7 +92,7 @@ describe('contentHighlighting', () => {
       expect(result1).toBe('Hello <mark class="highlight">world</mark>')
     })
 
-    it('should use cache key based on content prefix and full query', () => {
+    it('should use cache key based on full content and full query', () => {
       const shortContent = 'Hello world'
       const longContent =
         'Hello world with much more content that extends beyond the cache key prefix length of 100 characters to test that different content with same prefix uses different cache entries'
@@ -104,6 +104,24 @@ describe('contentHighlighting', () => {
       expect(result1).toBe('Hello <mark class="highlight">world</mark>')
       expect(result2).toContain('<mark class="highlight">world</mark>')
       expect(result1).not.toBe(result2)
+    })
+
+    it('should not collide when two notes share their first 100 characters', () => {
+      const shared =
+        '<h1>Meeting notes</h1><p>Attendees were present and the </p>'
+      const noteA = `${shared}<p>first topic was the budget review</p>`
+      const noteB = `${shared}<p>first topic was the hiring plan</p>`
+      const query = 'topic'
+
+      expect(shared.length).toBeGreaterThan(50)
+
+      const resultA = getHighlightedContent(noteA, query, false)
+      const resultB = getHighlightedContent(noteB, query, false)
+
+      expect(resultA).toContain('budget review')
+      expect(resultB).toContain('hiring plan')
+      expect(resultA).not.toContain('hiring plan')
+      expect(resultB).not.toContain('budget review')
     })
 
     it('should update access count and timestamp on cache hit', () => {
@@ -218,6 +236,35 @@ describe('contentHighlighting', () => {
         '<script>alert("xss")</script><mark class="highlight">world</mark>'
       )
       // NOTE: This test documents current behavior. In production, content should be sanitized before highlighting.
+    })
+
+    it('should not highlight inside attribute values', () => {
+      const content = '<p>See <a href="https://example.com/docs">docs</a></p>'
+      const result = getHighlightedContent(content, 'http', false)
+      expect(result).toBe(content)
+    })
+
+    it('should not highlight inside tag names', () => {
+      const content =
+        '<pre><code class="language-rust">fn main(){}</code></pre>'
+      const result = getHighlightedContent(content, 'code', false)
+      expect(result).toBe(content)
+    })
+
+    it('should highlight visible text but leave the id attribute alone', () => {
+      const content = '<h1 id="intro" class="x">Intro</h1>'
+      const result = getHighlightedContent(content, 'intro', false)
+      expect(result).toBe(
+        '<h1 id="intro" class="x"><mark class="highlight">Intro</mark></h1>'
+      )
+    })
+
+    it('should highlight text inside a code block without breaking it', () => {
+      const content = '<pre><code>let value = 1</code></pre>'
+      const result = getHighlightedContent(content, 'value', false)
+      expect(result).toBe(
+        '<pre><code>let <mark class="highlight">value</mark> = 1</code></pre>'
+      )
     })
 
     it('should handle newlines and special whitespace', () => {

@@ -50,7 +50,6 @@ Focused component handling CodeMirror initialization and content editing.
     onExitHeaderCapture?: ((headerText: string) => void) | null
     onExitCursorCapture?: ((line: number, column: number) => void) | null
     initialCursor?: [number, number] | null
-    isDirty?: boolean
   }
 
   let {
@@ -59,12 +58,12 @@ Focused component handling CodeMirror initialization and content editing.
     nearestHeaderText = '',
     onSave,
     onContentChange,
+    onDirtyChange,
     onExit = null,
     onRequestExit = null,
     onExitHeaderCapture = null,
     onExitCursorCapture = null,
     initialCursor = null,
-    isDirty = $bindable(false),
   }: Props = $props()
 
   // Get reactive config state
@@ -90,8 +89,11 @@ Focused component handling CodeMirror initialization and content editing.
 
   const propsChanged = $derived(value !== lastPropsValue)
 
+  // Reported, never bound: the authoritative dirty flag lives in editorManager
+  // as a derived value. Binding it back here would write to a getter-only
+  // property and throw on every keystroke.
   function handleDirtyChange(dirty: boolean): void {
-    isDirty = dirty
+    onDirtyChange?.(dirty)
   }
 
   // Use effect only for side effect (notification), not state updates

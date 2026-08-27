@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
+// Fixed timestamp keeps note metadata comparable across separate
+// constructions within a single assertion.
+const FIXED_MODIFIED = 1_700_000_000
+
 // Mock Tauri API
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -15,9 +19,7 @@ const mockSearchManager = {
   setSearchInput: vi.fn(),
   setFilteredNotes: vi.fn(),
   searchInput: '',
-  filteredNotes: [
-    { filename: 'existing-note.md', modified: Date.now() / 1000 },
-  ],
+  filteredNotes: [{ filename: 'existing-note.md', modified: FIXED_MODIFIED }],
   isLoading: false,
   clearSearch: vi.fn(),
   areHighlightsCleared: false,
@@ -136,7 +138,7 @@ describe('appCoordinator Integration Tests', () => {
     mockConfigService.isVisible = false
     mockConfigService.content = ''
     mockSearchManager.filteredNotes = [
-      { filename: 'existing-note.md', modified: Date.now() / 1000 },
+      { filename: 'existing-note.md', modified: FIXED_MODIFIED },
     ]
 
     // Import the factories after mocks are set up
@@ -151,8 +153,8 @@ describe('appCoordinator Integration Tests', () => {
       const noteName = 'My New Note'
       const expectedFileName = 'My New Note.md'
       const updatedNotes = [
-        { filename: 'existing-note.md', modified: Date.now() / 1000 },
-        { filename: expectedFileName, modified: Date.now() / 1000 },
+        { filename: 'existing-note.md', modified: FIXED_MODIFIED },
+        { filename: expectedFileName, modified: FIXED_MODIFIED },
       ]
 
       // Mock successful creation
@@ -218,7 +220,7 @@ describe('appCoordinator Integration Tests', () => {
       appCoordinator.managers.focusManager.setSelectedIndex(0)
       // Ensure filteredNotes has notes by default
       mockSearchManager.filteredNotes = [
-        { filename: 'existing-note.md', modified: Date.now() / 1000 },
+        { filename: 'existing-note.md', modified: FIXED_MODIFIED },
       ]
     })
 
@@ -286,7 +288,7 @@ describe('appCoordinator Integration Tests', () => {
       mockSearchManager.searchInput = 'existing'
       // Ensure filteredNotes has notes by default
       mockSearchManager.filteredNotes = [
-        { filename: 'existing-note.md', modified: Date.now() / 1000 },
+        { filename: 'existing-note.md', modified: FIXED_MODIFIED },
       ]
     })
 

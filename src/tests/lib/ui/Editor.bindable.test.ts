@@ -173,4 +173,31 @@ describe('Editor Bindable Property Issue Documentation', () => {
       expect(hasProblematicCode).toBe(false)
     })
   })
+
+  describe('bindings must not target read-only manager getters', () => {
+    // `editorManager` exposes `editContent` and `isDirty` as getter-only
+    // properties. `bind:` compiles to a setter that assigns straight back to
+    // them, which throws "Cannot set property X ... which has only a getter"
+    // in strict mode on every write. CodeMirror swallows the exception in its
+    // update listener, so this only shows up as console noise per keystroke.
+    it('should not compile NoteView bindings into writes to editorManager', async () => {
+      const { readFileSync } = await import('fs')
+      const { join } = await import('path')
+      const { compile } = await import('svelte/compiler')
+
+      const componentPath = join(process.cwd(), 'src/lib/ui/NoteView.svelte')
+      const source = readFileSync(componentPath, 'utf-8')
+      const compiled = compile(source, {
+        generate: 'client',
+        filename: 'NoteView.svelte',
+      }).js.code
+
+      const writesToManager = [
+        ...compiled.matchAll(/(\w+)\.(\w+) = \$\$value/g),
+      ].map((match) => `${match[1]}.${match[2]}`)
+
+      expect(writesToManager).not.toContain('editorManager.isDirty')
+      expect(writesToManager).not.toContain('editorManager.editContent')
+    })
+  })
 })
