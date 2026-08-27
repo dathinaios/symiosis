@@ -88,6 +88,33 @@ describe('ContentNavigationManager', () => {
     navigationManager = createContentNavigationManager(mockDeps)
   })
 
+  describe('returning to a header after editing', () => {
+    it('does not collapse the note', () => {
+      expect(navigationManager.navigateToHeader('Second Header')).toBe(true)
+
+      const headers = mockNoteContentElement.querySelectorAll('h1, h2, h3')
+      expect(headers[1].classList.contains('header-current')).toBe(true)
+
+      // Restoring the position after an edit is not the same as starting
+      // header navigation, so the accordion must stay out of it.
+      const collapsed = mockNoteContentElement.querySelectorAll(
+        '.header-collapsed, .content-collapsed'
+      )
+      expect(collapsed).toHaveLength(0)
+    })
+
+    it('still collapses when header navigation is used directly', () => {
+      mockDeps.searchManager.query = ''
+      navigationManager.navigateNext()
+      navigationManager.navigateNext()
+
+      const collapsed = mockNoteContentElement.querySelectorAll(
+        '.header-collapsed, .content-collapsed'
+      )
+      expect(collapsed.length).toBeGreaterThan(0)
+    })
+  })
+
   describe('carrying position across a mode change', () => {
     it('continues header navigation from where highlight navigation stopped', () => {
       mockDeps.searchManager.query = 'search'

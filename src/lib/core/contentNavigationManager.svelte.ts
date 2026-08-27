@@ -990,8 +990,14 @@ export function createContentNavigationManager(
       const headerIndex = headerElements.indexOf(targetHeader)
       if (headerIndex >= 0) {
         state.currentIndex = headerIndex
+        // Deliberately not scrollToElement: that applies the accordion, so
+        // returning from the editor used to collapse the whole note. Restoring
+        // a position is not the same as starting header navigation.
+        clearCurrentElementStyle()
+        state.currentElement = targetHeader
         state.navigationMode = 'headers'
-        scrollToElement(targetHeader)
+        targetHeader.classList.add('header-current')
+        performElementScroll(targetHeader)
         return true
       }
     }
