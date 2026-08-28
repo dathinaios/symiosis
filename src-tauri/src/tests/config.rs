@@ -694,3 +694,75 @@ fn test_first_run_creates_the_config_and_reports_itself() {
         "the second run must not report itself as a first run"
     );
 }
+
+#[test]
+fn test_interface_hints_explain_the_fallback_relationship() {
+    use crate::config::insert_interface_hints;
+
+    let interface = crate::config::InterfaceConfig::default();
+    let toml_content = "[interface]\nui_theme = \"gruvbox-dark\"\n";
+    let out = insert_interface_hints(toml_content, &interface);
+
+    // Renaming ui_theme after a custom file is refused by validation with an
+    // error that reads as though the custom theme were rejected. The generated
+    // config has to say which field the custom stylesheet goes in.
+    assert!(
+        out.contains("must name a built-in theme"),
+        "hint must state that ui_theme is a built-in name: {}",
+        out
+    );
+    assert!(
+        out.contains("fallback"),
+        "hint must state that ui_theme is the fallback: {}",
+        out
+    );
+    assert!(out.contains("custom_ui_theme_path"));
+    assert!(out.contains("custom_markdown_theme_path"));
+}
+
+#[test]
+fn test_markdown_hint_survives_a_set_custom_ui_path() {
+    use crate::config::insert_interface_hints;
+
+    // The markdown hint used to be chained off the UI hint's text, so a config
+    // that already set a custom UI theme dropped the markdown hint entirely.
+    let interface = crate::config::InterfaceConfig {
+        custom_ui_theme_path: Some("/themes/mine.css".to_string()),
+        ..Default::default()
+    };
+    let out = insert_interface_hints("[interface]\n", &interface);
+
+    assert!(
+        out.contains("custom_markdown_theme_path"),
+        "markdown hint must not depend on the UI hint: {}",
+        out
+    );
+    assert!(
+        !out.contains("# custom_ui_theme_path"),
+        "no example for a path that is already set: {}",
+        out
+    );
+}
+
+#[test]
+fn test_hints_only_match_a_real_table_header() {
+    use crate::config::insert_interface_hints;
+
+    // Substring matching rewrote a notes_directory that happened to contain
+    // the table name.
+    let interface = crate::config::InterfaceConfig::default();
+    let toml_content = "notes_directory = \"/home/me/[interface]/notes\"\n[interface]\n";
+    let out = insert_interface_hints(toml_content, &interface);
+
+    assert!(
+        out.contains("notes_directory = \"/home/me/[interface]/notes\""),
+        "a value containing the table name must be left alone: {}",
+        out
+    );
+    assert_eq!(
+        out.matches("must name a built-in theme").count(),
+        1,
+        "hints inserted exactly once: {}",
+        out
+    );
+}

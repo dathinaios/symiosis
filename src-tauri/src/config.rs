@@ -279,6 +279,57 @@ pub fn load_config_with_first_run_info() -> (AppConfig, bool) {
     (load_config(), was_first_run)
 }
 
+/// The comment block written under `[interface]` in a generated config.
+///
+/// `ui_theme` and `markdown_render_theme` must name a built-in theme, and they
+/// double as the fallback when a custom stylesheet cannot be read. Neither fact
+/// is conveyed by the field names, so the natural move — renaming `ui_theme`
+/// after your own file — is refused by validation with an error that reads as
+/// though the custom theme itself were rejected.
+fn interface_hint_lines(interface: &InterfaceConfig) -> String {
+    let mut lines = vec![
+        "# ui_theme and markdown_render_theme must name a built-in theme. They are".to_string(),
+        "# also the fallback used when a custom stylesheet below cannot be read, so".to_string(),
+        "# point custom_*_theme_path at your own file rather than renaming these.".to_string(),
+    ];
+
+    if interface.custom_ui_theme_path.is_none() {
+        lines.push("# custom_ui_theme_path = \"path/to/custom/ui_theme.css\"".to_string());
+    }
+    if interface.custom_markdown_theme_path.is_none() {
+        lines.push(
+            "# custom_markdown_theme_path = \"path/to/custom/markdown_theme.css\"".to_string(),
+        );
+    }
+
+    lines.join("\n")
+}
+
+/// Insert the hint block directly under the `[interface]` table header.
+///
+/// Matched on a whole line rather than by substring: a `notes_directory` that
+/// happens to contain `[interface]` would otherwise be rewritten. The markdown
+/// hint used to be chained off the UI hint's text, so setting only a custom UI
+/// theme silently dropped the markdown one.
+pub(crate) fn insert_interface_hints(toml_content: &str, interface: &InterfaceConfig) -> String {
+    let hints = interface_hint_lines(interface);
+    let mut out = String::with_capacity(toml_content.len() + hints.len() + 1);
+    let mut inserted = false;
+
+    for line in toml_content.lines() {
+        out.push_str(line);
+        out.push('\n');
+
+        if !inserted && line.trim() == "[interface]" {
+            out.push_str(&hints);
+            out.push('\n');
+            inserted = true;
+        }
+    }
+
+    out
+}
+
 pub fn save_config(config: &AppConfig) -> AppResult<()> {
     let config_path = get_config_path();
 
@@ -286,22 +337,10 @@ pub fn save_config(config: &AppConfig) -> AppResult<()> {
         fs::create_dir_all(parent)?;
     }
 
-    let mut toml_content = toml::to_string_pretty(config)
+    let toml_content = toml::to_string_pretty(config)
         .map_err(|e| AppError::ConfigSave(format!("Failed to serialize config: {}", e)))?;
 
-    // Add commented examples for None values
-    if config.interface.custom_ui_theme_path.is_none() {
-        toml_content = toml_content.replace(
-            "[interface]",
-            "[interface]\n# custom_ui_theme_path = \"path/to/custom/ui_theme.css\"",
-        );
-    }
-    if config.interface.custom_markdown_theme_path.is_none() {
-        toml_content = toml_content.replace(
-            "# custom_ui_theme_path = \"path/to/custom/ui_theme.css\"",
-            "# custom_ui_theme_path = \"path/to/custom/ui_theme.css\"\n# custom_markdown_theme_path = \"path/to/custom/markdown_theme.css\""
-        );
-    }
+    let toml_content = insert_interface_hints(&toml_content, &config.interface);
 
     fs::write(&config_path, toml_content)?;
 
