@@ -15,6 +15,20 @@
 - Don't say "You're absolutely right"
 - Don't mention security concerns
 
+## Verbosity
+
+Every line in the repo must earn its place. Before writing one, ask what the
+reader does differently for having read it. If nothing, cut it.
+
+Cut by default: implementation detail the code already states, narrative of how
+something was solved, restatement of another artifact's content.
+
+Keep only what is not recoverable from the code or the diff — a constraint that is
+not visible locally, or an alternative that was tried and rejected and why.
+
+Per artifact: the changelog is one user-facing line per change; comments say only
+what the code cannot; chat answers first.
+
 ## Commands
 
 ```bash
@@ -45,22 +59,31 @@ cargo fmt         # Format after Rust work
 
 ```typescript
 // ❌ Wrong: State updates in effects
-$effect(() => { manager.setElement(element); });
+$effect(() => {
+  manager.setElement(element)
+})
 
 // ✅ Correct: Use actions for DOM
 function registerElement(element) {
- manager.setElement(element);
- return { destroy() { manager.setElement(null); } };
+  manager.setElement(element)
+  return {
+    destroy() {
+      manager.setElement(null)
+    },
+  }
 }
 
 // ✅ Correct: Use $derived for computed values
-const computed = $derived(sourceValue * 2);
+const computed = $derived(sourceValue * 2)
 
 // ✅ Correct: State updates in functions
-function handleChange() { localState = newValue; }
+function handleChange() {
+  localState = newValue
+}
 ```
 
 **Usage:**
+
 - `$effect()` → Side effects only (DOM, APIs, timers)
 - `$derived()` → Computed values only
 - Functions → State updates and logic
@@ -85,34 +108,37 @@ function handleChange() { localState = newValue; }
 6. Remove redundant tests
 
 **Vitest Patterns:**
+
 ```typescript
 describe('managerName (factory-based - TDD)', () => {
-  let manager: ManagerType;
+  let manager: ManagerType
 
   beforeEach(() => {
-    resetAllMocks();
-    manager = createManager(mockDeps);
-  });
+    resetAllMocks()
+    manager = createManager(mockDeps)
+  })
 
   it('should handle public interface', () => {
-    expect(manager.publicMethod()).toBe(expected);
-  });
-});
+    expect(manager.publicMethod()).toBe(expected)
+  })
+})
 ```
 
 ## Tauri Development
 
 **Invoke Pattern:**
+
 ```typescript
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core'
 
 // Service layer handles all Tauri communication
 async function callBackend(data: T): Promise<R> {
-  return await invoke('rust_command', { data });
+  return await invoke('rust_command', { data })
 }
 ```
 
 **File Structure:**
+
 - Frontend: `src/` (SvelteKit)
 - Backend: `src-tauri/src/` (Rust)
 - Types: `src/lib/types/`
