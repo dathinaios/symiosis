@@ -486,4 +486,51 @@ describe('configManager', () => {
       expect(manager.error).toBeNull()
     })
   })
+  describe('custom theme failures', () => {
+    async function initializeWithCustomUiTheme(path: string): Promise<void> {
+      vi.mocked(mockConfigService.getInterfaceConfig).mockResolvedValue({
+        ...mockDefaultConfig.interface,
+        custom_ui_theme_path: path,
+      })
+      await manager.initialize()
+    }
+
+    it('reports a custom theme file it could not read', async () => {
+      // Swallowing this left the built-in theme applied with no signal
+      // anywhere, which is the failure mode config validation set out to end.
+      vi.mocked(mockConfigService.loadCustomThemeFile).mockRejectedValue(
+        new Error('No such file')
+      )
+
+      await initializeWithCustomUiTheme('/nope/missing.css')
+
+      expect(manager.error).toContain('/nope/missing.css')
+      expect(manager.error).toContain('UI')
+    })
+
+    it('names the markdown theme separately from the UI one', async () => {
+      vi.mocked(mockConfigService.getInterfaceConfig).mockResolvedValue({
+        ...mockDefaultConfig.interface,
+        custom_markdown_theme_path: '/nope/md.css',
+      })
+      vi.mocked(mockConfigService.loadCustomThemeFile).mockRejectedValue(
+        new Error('No such file')
+      )
+
+      await manager.initialize()
+
+      expect(manager.error).toContain('markdown')
+      expect(manager.error).toContain('/nope/md.css')
+    })
+
+    it('stays quiet when the custom theme reads cleanly', async () => {
+      vi.mocked(mockConfigService.loadCustomThemeFile).mockResolvedValue(
+        'body { color: red; }'
+      )
+
+      await initializeWithCustomUiTheme('/themes/mine.css')
+
+      expect(manager.error).toBeNull()
+    })
+  })
 })

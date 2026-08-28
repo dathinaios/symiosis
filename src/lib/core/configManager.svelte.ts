@@ -154,10 +154,17 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
     }
   }
 
-  async function loadCustomCss(path: string): Promise<string | undefined> {
+  async function loadCustomCss(
+    path: string,
+    label: 'UI' | 'markdown'
+  ): Promise<string | undefined> {
     try {
       return await deps.configService.loadCustomThemeFile(path)
     } catch (error) {
+      // Falling back with only a console line is the defect the config
+      // validation pass set out to remove: a theme that never applied, with no
+      // signal anywhere. The settings pane renders this.
+      state.error = `Custom ${label} theme could not be read from "${path}". Falling back to the built-in theme. (${error})`
       console.error('Failed to load custom theme:', error)
       return undefined
     }
@@ -190,7 +197,7 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
       ) {
         ;(async () => {
           const customUiCss = config.interface.custom_ui_theme_path
-            ? await loadCustomCss(config.interface.custom_ui_theme_path)
+            ? await loadCustomCss(config.interface.custom_ui_theme_path, 'UI')
             : undefined
           await loadUITheme(
             config.interface.ui_theme,
@@ -206,7 +213,10 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
       ) {
         ;(async () => {
           const customMdCss = config.interface.custom_markdown_theme_path
-            ? await loadCustomCss(config.interface.custom_markdown_theme_path)
+            ? await loadCustomCss(
+                config.interface.custom_markdown_theme_path,
+                'markdown'
+              )
             : undefined
           await loadMarkdownThemeUtil(
             config.interface.markdown_render_theme,
@@ -267,11 +277,14 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
   async function setupThemes(interfaceConfig: InterfaceConfig): Promise<void> {
     applyInterfaceConfig(interfaceConfig)
     const customUiCss = interfaceConfig.custom_ui_theme_path
-      ? await loadCustomCss(interfaceConfig.custom_ui_theme_path)
+      ? await loadCustomCss(interfaceConfig.custom_ui_theme_path, 'UI')
       : undefined
     await loadUITheme(interfaceConfig.ui_theme, validUIThemes, customUiCss)
     const customMdCss = interfaceConfig.custom_markdown_theme_path
-      ? await loadCustomCss(interfaceConfig.custom_markdown_theme_path)
+      ? await loadCustomCss(
+          interfaceConfig.custom_markdown_theme_path,
+          'markdown'
+        )
       : undefined
     await loadMarkdownThemeUtil(
       interfaceConfig.markdown_render_theme,
@@ -476,11 +489,15 @@ export function createConfigManager(deps: ConfigManagerDeps): ConfigManager {
     cleanup,
     forceRefresh,
     loadTheme: async (theme: string, customPath?: string) => {
-      const customCss = customPath ? await loadCustomCss(customPath) : undefined
+      const customCss = customPath
+        ? await loadCustomCss(customPath, 'UI')
+        : undefined
       await loadUITheme(theme, validUIThemes, customCss)
     },
     loadMarkdownTheme: async (theme: string, customPath?: string) => {
-      const customCss = customPath ? await loadCustomCss(customPath) : undefined
+      const customCss = customPath
+        ? await loadCustomCss(customPath, 'markdown')
+        : undefined
       await loadMarkdownThemeUtil(theme, customCss)
     },
     loadHighlightJSTheme: loadHighlightJSThemeUtil,
