@@ -12,6 +12,20 @@ date, open a fresh `[Unreleased]` section above it, bump `version` in
 
 ## [Unreleased]
 
+### Changed
+
+- A save that reaches disk but cannot update the search index shows a warning
+  that search may be out of date.
+
+### Fixed
+
+- A note that could not be saved closed the editor anyway, discarding the edits
+  without a word. The editor now stays open, the error is shown, and the unsaved
+  text appears in the version explorer as a failed save.
+- When the notes folder could not be read, for example because macOS privacy
+  settings blocked it, a refresh could empty the note list. The list is now kept
+  and the error reported.
+
 ## [0.4.0] - 2026-08-28
 
 ### Added
