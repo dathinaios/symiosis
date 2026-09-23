@@ -179,6 +179,7 @@ function createFixture(stateOverrides: Partial<MockState> = {}): {
       openDialog: vi.fn().mockResolvedValue(undefined),
     },
     getSelectedNote: () => state.selectedNote,
+    notifyError: vi.fn(),
   }
 
   return { commands: createCommands(deps), deps, state }
@@ -529,17 +530,32 @@ describe('commands', () => {
       expect(deps.searchManager.setFilteredNotes).toHaveBeenCalledWith(NOTES)
     })
 
-    it('does not touch the search when the save fails', async () => {
+    it('reports a failed save and leaves the search alone', async () => {
       const { commands, deps } = createFixture()
       vi.mocked(deps.editorManager.saveNote).mockResolvedValue({
         success: false,
         error: 'disk full',
       })
 
-      await commands.saveNote()
+      expect(await commands.saveNote()).toBe(false)
 
+      expect(deps.notifyError).toHaveBeenCalledWith('Note not saved: disk full')
       expect(deps.searchManager.clearSearch).not.toHaveBeenCalled()
       expect(deps.contentManager.refreshAfterSave).not.toHaveBeenCalled()
+    })
+
+    it('counts a save that reached disk as saved, warning about the index', async () => {
+      const { commands, deps } = createFixture()
+      vi.mocked(deps.editorManager.saveNote).mockResolvedValue({
+        success: true,
+        indexWarning: 'rebuild failed',
+      })
+
+      expect(await commands.saveNote()).toBe(true)
+
+      expect(deps.notifyError).toHaveBeenCalledWith(
+        'Note saved, but search may be out of date: rebuild failed'
+      )
     })
 
     it('survives a failed post-save refresh', async () => {
@@ -548,7 +564,7 @@ describe('commands', () => {
         new Error('index busy')
       )
 
-      await expect(commands.saveNote()).resolves.toBeUndefined()
+      await expect(commands.saveNote()).resolves.toBe(true)
       expect(deps.searchManager.setFilteredNotes).not.toHaveBeenCalled()
     })
   })
@@ -728,7 +744,7 @@ describe('commands', () => {
   })
 
   describe('saveAndExitNote', () => {
-    it('captures position, saves, exits, then selects the most recent note', async () => {
+    it('saves, captures position, exits, then selects the most recent note', async () => {
       const order: string[] = []
       const { commands, deps } = createFixture()
       vi.mocked(deps.editorManager.captureExitPosition).mockImplementation(
@@ -747,12 +763,12 @@ describe('commands', () => {
 
       await commands.saveAndExitNote()
 
-      expect(order).toEqual(['capture', 'save', 'exit'])
+      expect(order).toEqual(['save', 'capture', 'exit'])
       // An empty search lists by recency, so the note just saved is at the top.
       expect(deps.focusManager.setSelectedIndex).toHaveBeenCalledWith(0)
     })
 
-    it('still exits when the save fails, leaving the note selected', async () => {
+    it('stays in the editor when the save fails, so the edits are not lost', async () => {
       const { commands, deps } = createFixture()
       vi.mocked(deps.editorManager.saveNote).mockResolvedValue({
         success: false,
@@ -761,7 +777,8 @@ describe('commands', () => {
 
       await commands.saveAndExitNote()
 
-      expect(deps.editorManager.exitEditMode).toHaveBeenCalled()
+      expect(deps.editorManager.exitEditMode).not.toHaveBeenCalled()
+      expect(deps.notifyError).toHaveBeenCalled()
     })
   })
 

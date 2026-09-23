@@ -23,6 +23,8 @@ interface EditorState {
 interface SaveResult {
   success: boolean
   error?: string
+  /** Saved to disk, but the search index could not be updated. */
+  indexWarning?: string
 }
 
 interface EditorManagerDeps {
@@ -231,7 +233,7 @@ export function createEditorManager(deps: EditorManagerDeps): EditorManager {
     }
 
     try {
-      await deps.noteService.save(
+      const indexWarning = await deps.noteService.save(
         state.editingNoteName,
         state.editContent,
         state.originalContent
@@ -239,9 +241,9 @@ export function createEditorManager(deps: EditorManagerDeps): EditorManager {
 
       state.originalContent = state.editContent
 
-      return { success: true }
+      return indexWarning ? { success: true, indexWarning } : { success: true }
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Save failed'
+      const errorMessage = e instanceof Error ? e.message : String(e)
       console.error('Failed to save note:', e)
 
       return {

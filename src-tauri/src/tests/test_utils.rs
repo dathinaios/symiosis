@@ -398,7 +398,7 @@ mod test_command_wrappers {
         note_name: &str,
         content: &str,
         original_content: &str,
-    ) -> Result<(), String> {
+    ) -> Result<Option<String>, String> {
         // SAFETY CHECK: Ensure we're in test mode before proceeding
         if std::env::var("SYMIOSIS_TEST_MODE_ENABLED").is_err() {
             panic!("CRITICAL SAFETY ERROR: test_save_note_with_content_check() called outside of TestConfigOverride!");

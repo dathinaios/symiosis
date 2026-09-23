@@ -115,9 +115,9 @@ export function createNoteService() {
     noteName: string,
     content: string,
     originalContent: string
-  ): Promise<void> {
+  ): Promise<string | null> {
     try {
-      await invoke<void>('save_note_with_content_check', {
+      return await invoke<string | null>('save_note_with_content_check', {
         noteName,
         content,
         originalContent,

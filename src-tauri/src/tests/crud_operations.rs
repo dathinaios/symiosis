@@ -603,4 +603,45 @@ mod serial_tests {
             "Updated note should have new content"
         );
     }
+
+    #[test]
+    fn test_save_that_reaches_disk_succeeds_when_the_index_cannot_be_rebuilt() {
+        let test_config = TestConfigOverride::new().expect("Should create test config");
+        let notes_dir = test_config.notes_dir();
+        let app_state =
+            crate::core::state::AppState::new_with_fallback(crate::config::load_config())
+                .expect("Should create app state");
+        // A view in the table's place fails the index update and the rebuild after it.
+        crate::database::with_db(&app_state, |conn| {
+            conn.execute_batch("DROP TABLE notes; CREATE VIEW notes AS SELECT 1 AS filename;")?;
+            Ok(())
+        })
+        .expect("Should break the index");
+
+        let result = test_save_note_with_content_check("saved.md", "text", "");
+
+        assert!(
+            matches!(result, Ok(Some(_))),
+            "Save should succeed with an index warning, got {:?}",
+            result
+        );
+        assert_eq!(
+            fs::read_to_string(notes_dir.join("saved.md")).expect("Should read note"),
+            "text"
+        );
+        let backup_dir = crate::utilities::paths::get_backup_dir_for_notes_path(&notes_dir)
+            .expect("Should resolve backup dir");
+        let failure_backups = fs::read_dir(&backup_dir)
+            .map(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.file_name().to_string_lossy().contains(".save_failure."))
+                    .count()
+            })
+            .unwrap_or(0);
+        assert_eq!(
+            failure_backups, 0,
+            "A saved note should leave no failure backup"
+        );
+    }
 }

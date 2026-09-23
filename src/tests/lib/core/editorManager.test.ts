@@ -169,6 +169,29 @@ describe('editorManager', () => {
       expect(editorManager.isDirty).toBe(true) // Should remain dirty on failure
     })
 
+    it('keeps the backend reason when the save rejects with a string', async () => {
+      mockNoteService.getRawContent.mockResolvedValue('original content')
+      await editorManager.enterEditMode(mockNoteName)
+      mockNoteService.save.mockRejectedValue('Permission denied')
+
+      const result = await editorManager.saveNote()
+
+      expect(result.error).toBe('Permission denied')
+    })
+
+    it('passes on a warning from a save that reached disk', async () => {
+      mockNoteService.getRawContent.mockResolvedValue('original content')
+      await editorManager.enterEditMode(mockNoteName)
+      mockNoteService.save.mockResolvedValue('index rebuild failed')
+
+      const result = await editorManager.saveNote()
+
+      expect(result).toEqual({
+        success: true,
+        indexWarning: 'index rebuild failed',
+      })
+    })
+
     it('should handle no note being edited', async () => {
       const result = await editorManager.saveNote()
 

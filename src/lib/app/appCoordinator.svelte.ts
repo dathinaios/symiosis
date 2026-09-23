@@ -189,6 +189,9 @@ export function createAppCoordinator(
     versionExplorerManager,
     recentlyDeletedManager,
     getSelectedNote: () => selectedNote,
+    notifyError: (message: string) => {
+      void notification.error(message)
+    },
   })
 
   function isAnyDialogOpen(): boolean {

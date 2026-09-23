@@ -101,6 +101,7 @@ export interface CommandDeps {
   recentlyDeletedManager: Pick<RecentlyDeletedManager, 'openDialog'>
   /** The note currently selected in the list; derived by the coordinator. */
   getSelectedNote: () => string | null
+  notifyError(message: string): void
 }
 
 export interface Commands {
@@ -130,7 +131,7 @@ export interface Commands {
   createNote(name?: string): Promise<void>
   renameNote(newName?: string): Promise<void>
   deleteNote(): Promise<void>
-  saveNote(): Promise<void>
+  saveNote(): Promise<boolean>
   openNoteExternally(): Promise<void>
   openNoteFolder(): Promise<void>
   refreshCache(): Promise<void>
@@ -195,15 +196,21 @@ export function createCommands(deps: CommandDeps): Commands {
     deps.focusManager.focusSearch()
   }
 
-  async function saveNote(): Promise<void> {
+  async function saveNote(): Promise<boolean> {
     const result = await deps.editorManager.saveNote()
     if (!result.success) {
-      console.error('Failed to save note:', result.error)
-      return
+      deps.notifyError(`Note not saved: ${result.error}`)
+      return false
+    }
+    if (result.indexWarning) {
+      deps.notifyError(
+        `Note saved, but search may be out of date: ${result.indexWarning}`
+      )
     }
 
     deps.searchManager.clearSearch()
     await refreshSearchAfterSave()
+    return true
   }
 
   // Smooth scrolling animates for ~300ms, and a held key issues repeats faster
@@ -399,10 +406,12 @@ export function createCommands(deps: CommandDeps): Commands {
     },
 
     async saveAndExitNote() {
+      if (!(await saveNote())) {
+        return
+      }
       deps.editorManager.captureExitPosition(
         deps.editorManager.setExitHeaderText
       )
-      await saveNote()
       exitEditMode()
       // An empty search lists notes by recency, and we just saved this one.
       deps.focusManager.setSelectedIndex(0)

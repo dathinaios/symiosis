@@ -158,21 +158,25 @@ pub fn create_new_note(
     result.map_err(|e| e.to_string())
 }
 
+/// `Ok(Some(reason))`: the note is on disk, but the search index could not be updated.
 #[tauri::command]
 pub fn save_note_with_content_check(
     note_name: &str,
     content: &str,
     original_content: &str,
     app_state: tauri::State<crate::core::state::AppState>,
-) -> Result<(), String> {
-    let result = || -> AppResult<()> {
+) -> Result<Option<String>, String> {
+    let result = || -> AppResult<Option<String>> {
         validate_note_name(note_name)?;
         let config = app_state.config.read().unwrap_or_else(|e| e.into_inner());
         let notes_dir = std::path::PathBuf::from(&config.notes_directory);
         let note_path = notes_dir.join(note_name);
         validate_content_unchanged(&notes_dir, &note_path, note_name, original_content, content)?;
-        perform_safe_write_and_update(&notes_dir, &note_path, content, note_name, &app_state)?;
-        Ok(())
+        write_note_file(&notes_dir, &note_path, content, &app_state)?;
+        let index_warning = update_index_after_save(&note_path, content, note_name, &app_state)
+            .err()
+            .map(|e| e.to_string());
+        Ok(index_warning)
     }();
     result.map_err(|e| e.to_string())
 }
@@ -368,11 +372,10 @@ fn validate_content_unchanged(
     Ok(())
 }
 
-fn perform_safe_write_and_update(
+fn write_note_file(
     notes_dir: &std::path::Path,
     note_path: &std::path::Path,
     content: &str,
-    note_name: &str,
     app_state: &tauri::State<crate::core::state::AppState>,
 ) -> AppResult<()> {
     if let Some(parent) = note_path.parent() {
@@ -380,8 +383,15 @@ fn perform_safe_write_and_update(
     }
 
     app_state.self_writes.record_write(note_path, content);
-    safe_write_note(notes_dir, note_path, content)?;
+    safe_write_note(notes_dir, note_path, content)
+}
 
+fn update_index_after_save(
+    note_path: &std::path::Path,
+    content: &str,
+    note_name: &str,
+    app_state: &tauri::State<crate::core::state::AppState>,
+) -> AppResult<()> {
     let modified = file_modified_secs(note_path);
 
     match update_note_in_database(app_state, note_name, content, modified) {

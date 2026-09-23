@@ -700,7 +700,7 @@ mod real_database_function_tests {
         let result = test_save_note_with_content_check(note_name, new_content, original_content);
 
         match result {
-            Ok(()) => {
+            Ok(_) => {
                 // Verify file was updated
                 let file_content =
                     fs::read_to_string(&note_path).expect("Should read updated file");
@@ -741,7 +741,7 @@ mod real_database_function_tests {
             test_save_note_with_content_check(note_name, new_content, original_content);
 
         match validation_result {
-            Ok(()) => {
+            Ok(_) => {
                 panic!("Save should fail when original content doesn't match current content")
             }
             Err(e) => {
