@@ -605,6 +605,54 @@ mod serial_tests {
     }
 
     #[test]
+    fn test_save_of_unreadable_note_keeps_the_unsaved_text() {
+        let test_config = TestConfigOverride::new().expect("Should create test config");
+        let notes_dir = test_config.notes_dir();
+        // A directory in the note's place cannot be read, as a file blocked by
+        // macOS privacy settings cannot.
+        fs::create_dir(notes_dir.join("locked.md")).expect("Should create directory");
+
+        let result = test_save_note_with_content_check("locked.md", "unsaved text", "");
+        assert!(result.is_err(), "Save should fail");
+
+        let backup_dir = crate::utilities::paths::get_backup_dir_for_notes_path(&notes_dir)
+            .expect("Should resolve backup dir");
+        let backups: Vec<String> = fs::read_dir(&backup_dir)
+            .expect("Backup dir should exist")
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with("locked.save_failure.")
+            })
+            .map(|e| fs::read_to_string(e.path()).expect("Should read backup"))
+            .collect();
+        assert_eq!(backups, vec!["unsaved text".to_string()]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_save_blocked_by_permissions_is_not_reported_as_an_external_edit() {
+        use std::os::unix::fs::PermissionsExt;
+        let test_config = TestConfigOverride::new().expect("Should create test config");
+        let notes_dir = test_config.notes_dir();
+        test_save_note_with_content_check("blocked.md", "body", "").expect("Should save note");
+
+        fs::set_permissions(&notes_dir, fs::Permissions::from_mode(0o000))
+            .expect("Should lock notes dir");
+        let result = test_save_note_with_content_check("blocked.md", "edited", "body");
+        fs::set_permissions(&notes_dir, fs::Permissions::from_mode(0o755))
+            .expect("Should unlock notes dir");
+
+        let error = result.expect_err("Save should fail");
+        assert!(
+            !error.contains("modified since editing began"),
+            "Permission error reported as an external edit: {}",
+            error
+        );
+    }
+
+    #[test]
     fn test_save_that_reaches_disk_succeeds_when_the_index_cannot_be_rebuilt() {
         let test_config = TestConfigOverride::new().expect("Should create test config");
         let notes_dir = test_config.notes_dir();

@@ -384,7 +384,7 @@ fn cleanup_temp_file(temp_path: &Path) {
     }
 }
 
-fn create_save_failure_backup(notes_dir: &Path, note_path: &Path, content: &str) {
+pub fn create_save_failure_backup(notes_dir: &Path, note_path: &Path, content: &str) {
     match create_versioned_backup(notes_dir, note_path, BackupType::SaveFailure, Some(content)) {
         Ok(backup_path) => {
             log(

@@ -7,7 +7,9 @@ use crate::{
         note_service::update_note_in_database,
     },
     utilities::{
-        file_safety::{create_versioned_backup, safe_write_note, BackupType},
+        file_safety::{
+            create_save_failure_backup, create_versioned_backup, safe_write_note, BackupType,
+        },
         fs_meta::file_modified_secs,
         note_renderer::render_note,
         validation::validate_note_name,
@@ -166,19 +168,26 @@ pub fn save_note_with_content_check(
     original_content: &str,
     app_state: tauri::State<crate::core::state::AppState>,
 ) -> Result<Option<String>, String> {
-    let result = || -> AppResult<Option<String>> {
-        validate_note_name(note_name)?;
-        let config = app_state.config.read().unwrap_or_else(|e| e.into_inner());
-        let notes_dir = std::path::PathBuf::from(&config.notes_directory);
-        let note_path = notes_dir.join(note_name);
-        validate_content_unchanged(&notes_dir, &note_path, note_name, original_content, content)?;
-        write_note_file(&notes_dir, &note_path, content, &app_state)?;
-        let index_warning = update_index_after_save(&note_path, content, note_name, &app_state)
-            .err()
-            .map(|e| e.to_string());
-        Ok(index_warning)
-    }();
-    result.map_err(|e| e.to_string())
+    validate_note_name(note_name).map_err(|e| e.to_string())?;
+    let notes_dir = app_state.notes_dir();
+    let note_path = notes_dir.join(note_name);
+
+    validate_content_unchanged(&note_path, note_name, original_content)
+        .and_then(|_| write_note_file(&notes_dir, &note_path, content, &app_state))
+        .map_err(|e| {
+            log(
+                "SAVE_NOTE",
+                &format!("Failed to save '{}'", note_name),
+                Some(&e.to_string()),
+            );
+            create_save_failure_backup(&notes_dir, &note_path, content);
+            e.to_string()
+        })?;
+
+    let index_warning = update_index_after_save(&note_path, content, note_name, &app_state)
+        .err()
+        .map(|e| e.to_string());
+    Ok(index_warning)
 }
 
 #[tauri::command]
@@ -328,40 +337,17 @@ fn handle_database_cleanup(
 }
 
 fn validate_content_unchanged(
-    notes_dir: &std::path::Path,
     note_path: &std::path::Path,
     note_name: &str,
     original_content: &str,
-    content: &str,
 ) -> AppResult<()> {
-    let current_content = if note_path.exists() {
-        fs::read_to_string(note_path)?
-    } else {
-        String::new()
+    let current_content = match fs::read_to_string(note_path) {
+        Ok(content) => content,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(e.into()),
     };
 
     if current_content != original_content {
-        match create_versioned_backup(notes_dir, note_path, BackupType::SaveFailure, Some(content))
-        {
-            Ok(backup_path) => {
-                log(
-                    "FILE_BACKUP",
-                    "Created save failure backup due to external modification",
-                    Some(&backup_path.display().to_string()),
-                );
-            }
-            Err(e) => {
-                log(
-                    "FILE_BACKUP",
-                    &format!(
-                        "Failed to create save failure backup for '{}'",
-                        note_path.display()
-                    ),
-                    Some(&e.to_string()),
-                );
-            }
-        }
-
         return Err(AppError::InvalidPath(format!(
             "Cannot save '{}': file has been modified since editing began. \
             This safety check prevents accidental data loss.",
