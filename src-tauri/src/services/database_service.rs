@@ -66,13 +66,6 @@ pub fn init_db(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-pub fn load_all_notes_into_sqlite(
-    app_state: &AppState,
-    conn: &mut Connection,
-) -> rusqlite::Result<()> {
-    load_all_notes_into_sqlite_with_progress(app_state, conn, None)
-}
-
 fn ensure_notes_directory_exists(notes_dir: &Path) -> rusqlite::Result<()> {
     if !notes_dir.exists() {
         if let Err(e) = fs::create_dir_all(notes_dir) {
@@ -96,7 +89,21 @@ fn is_note_file(path: &std::path::Path) -> bool {
         .unwrap_or(false)
 }
 
+/// A walk silently skips a directory it cannot list, so an unreadable notes
+/// folder would look empty and a sync would drop every note from the index.
+fn ensure_notes_directory_readable(notes_dir: &Path) -> std::io::Result<()> {
+    fs::read_dir(notes_dir).map(|_| ()).inspect_err(|e| {
+        log(
+            "NOTES_DIRECTORY",
+            &format!("Cannot read notes directory {}", notes_dir.display()),
+            Some(&e.to_string()),
+        );
+    })
+}
+
 fn scan_filesystem_for_notes(notes_dir: &Path) -> rusqlite::Result<Vec<(String, PathBuf, i64)>> {
+    ensure_notes_directory_readable(notes_dir)
+        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
     let mut filesystem_files = Vec::new();
 
     for entry in WalkDir::new(notes_dir).into_iter().filter_map(|e| e.ok()) {
@@ -277,6 +284,16 @@ pub fn load_all_notes_into_sqlite_with_progress(
     sync_database_with_filesystem(conn, &filesystem_files, &database_files, app_handle)
 }
 
+/// Scans before dropping, so a folder that cannot be read leaves the index as it was.
+fn rebuild_notes_table(app_state: &AppState, conn: &mut Connection) -> rusqlite::Result<()> {
+    let notes_dir = app_state.notes_dir();
+    ensure_notes_directory_exists(&notes_dir)?;
+    let filesystem_files = scan_filesystem_for_notes(&notes_dir)?;
+    conn.execute("DROP TABLE IF EXISTS notes", [])?;
+    init_db(conn)?;
+    sync_database_with_filesystem(conn, &filesystem_files, &HashMap::new(), None)
+}
+
 pub fn recreate_database(app_state: &AppState) -> AppResult<()> {
     log(
         "DATABASE_RECREATE",
@@ -295,11 +312,7 @@ pub fn recreate_database(app_state: &AppState) -> AppResult<()> {
     })?;
 
     manager.with_connection_mut(|conn| {
-        conn.execute("DROP TABLE IF EXISTS notes", [])?;
-
-        init_db(conn)?;
-
-        load_all_notes_into_sqlite(app_state, conn)?;
+        rebuild_notes_table(app_state, conn)?;
 
         log(
             "DATABASE_RECREATE_SUCCESS",
@@ -341,10 +354,6 @@ pub async fn recreate_database_with_progress(
         })?;
 
         manager.with_connection_mut(|conn| {
-            conn.execute("DROP TABLE IF EXISTS notes", [])?;
-
-            init_db(conn)?;
-
             if let Err(e) = app_handle.emit("db-loading-progress", "Rendering notes...") {
                 log(
                     "UI_UPDATE",
@@ -353,7 +362,7 @@ pub async fn recreate_database_with_progress(
                 );
             }
 
-            load_all_notes_into_sqlite(app_state, conn).map_err(|e| e.into())
+            rebuild_notes_table(app_state, conn).map_err(|e| e.into())
         })
     };
 
@@ -390,9 +399,10 @@ pub async fn recreate_database_with_progress(
 pub fn quick_filesystem_sync_check(app_state: &AppState) -> AppResult<bool> {
     let notes_dir = app_state.notes_dir();
 
-    if !notes_dir.exists() {
+    if !notes_dir.try_exists()? {
         return Ok(true);
     }
+    ensure_notes_directory_readable(&notes_dir)?;
 
     with_db(app_state, |conn| {
         let mut files: Vec<_> = WalkDir::new(&notes_dir)

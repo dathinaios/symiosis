@@ -821,6 +821,78 @@ mod real_database_function_tests {
         assert_mtime_matches(&notes_dir, "mtime.md", "after save");
     }
 
+    #[test]
+    fn test_refresh_keeps_the_index_when_the_notes_folder_cannot_be_read() {
+        let test_override = TestConfigOverride::new().expect("Failed to create test override");
+        let notes_dir = test_override.notes_dir();
+        test_save_note_with_content_check("kept.md", "body", "").expect("Should save note");
+
+        // A file in the folder's place cannot be listed, as a folder blocked by
+        // macOS privacy settings cannot.
+        std::fs::remove_dir_all(&notes_dir).expect("Should remove notes dir");
+        std::fs::write(&notes_dir, "").expect("Should put a file in its place");
+        let result = test_refresh_cache_sync();
+        std::fs::remove_file(&notes_dir).expect("Should remove placeholder");
+        std::fs::create_dir_all(&notes_dir).expect("Should restore notes dir");
+
+        assert!(
+            result.is_err(),
+            "Refresh should report the unreadable folder"
+        );
+        let rows = test_note_rows("kept.md").expect("Should read note rows");
+        assert_eq!(rows.len(), 1, "Index should keep the note");
+    }
+
+    #[test]
+    fn test_rebuild_keeps_the_index_when_the_notes_folder_cannot_be_read() {
+        let test_override = TestConfigOverride::new().expect("Failed to create test override");
+        let notes_dir = test_override.notes_dir();
+        test_save_note_with_content_check("kept.md", "body", "").expect("Should save note");
+
+        std::fs::remove_dir_all(&notes_dir).expect("Should remove notes dir");
+        std::fs::write(&notes_dir, "").expect("Should put a file in its place");
+        let app_state =
+            crate::core::state::AppState::new_with_fallback(crate::config::load_config())
+                .expect("Should create app state");
+        let result = crate::services::database_service::recreate_database(&app_state);
+        std::fs::remove_file(&notes_dir).expect("Should remove placeholder");
+        std::fs::create_dir_all(&notes_dir).expect("Should restore notes dir");
+
+        assert!(
+            result.is_err(),
+            "Rebuild should report the unreadable folder"
+        );
+        let rows = test_note_rows("kept.md").expect("Should read note rows");
+        assert_eq!(rows.len(), 1, "Index should keep the note");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_sync_check_reports_a_notes_folder_it_cannot_reach() {
+        use std::os::unix::fs::PermissionsExt;
+        let test_override = TestConfigOverride::new().expect("Failed to create test override");
+        let notes_dir = test_override.notes_dir();
+        test_save_note_with_content_check("kept.md", "body", "").expect("Should save note");
+        let app_state =
+            crate::core::state::AppState::new_with_fallback(crate::config::load_config())
+                .expect("Should create app state");
+
+        // An unsearchable parent makes the folder fail even a stat, as a folder
+        // blocked by macOS privacy settings can.
+        let parent = notes_dir.parent().expect("Notes dir should have a parent");
+        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o000))
+            .expect("Should lock parent");
+        let result = crate::services::database_service::quick_filesystem_sync_check(&app_state);
+        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o755))
+            .expect("Should unlock parent");
+
+        assert!(
+            result.is_err(),
+            "Sync check should report it, got {:?}",
+            result
+        );
+    }
+
     fn assert_mtime_matches(notes_dir: &std::path::Path, filename: &str, stage: &str) {
         let file_mtime = file_modified_secs(&notes_dir.join(filename));
         let rows = test_note_rows(filename).expect("Should read note rows");

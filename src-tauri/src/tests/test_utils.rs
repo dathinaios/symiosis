@@ -460,8 +460,10 @@ mod test_command_wrappers {
         let app_state = AppState::new_with_fallback(config).expect("Test database setup failed");
         crate::database::with_db_mut(&app_state, |conn| {
             crate::services::database_service::init_db(conn)?;
-            crate::services::database_service::load_all_notes_into_sqlite(&app_state, conn)
-                .map_err(|e| e.into())
+            crate::services::database_service::load_all_notes_into_sqlite_with_progress(
+                &app_state, conn, None,
+            )
+            .map_err(|e| e.into())
         })
         .map_err(|e| e.to_string())
     }
