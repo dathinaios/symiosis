@@ -19,6 +19,8 @@ date, open a fresh `[Unreleased]` section above it, bump `version` in
 
 ### Fixed
 
+- On macOS, a downloaded Symiosis asked for Documents access on every launch, and
+  saves to a notes folder there failed even after allowing it.
 - A note that could not be saved closed the editor anyway, discarding the edits
   without a word. The editor now stays open, the error is shown, and the unsaved
   text appears in the version explorer as a failed save.
