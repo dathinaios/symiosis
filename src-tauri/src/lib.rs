@@ -431,7 +431,11 @@ fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
 
     let mut tray_builder = TrayIconBuilder::with_id("main-tray");
 
-    if let Some(icon) = app.default_window_icon() {
+    if cfg!(target_os = "macos") {
+        tray_builder = tray_builder
+            .icon(tauri::include_image!("icons/tray-template.png"))
+            .icon_as_template(true);
+    } else if let Some(icon) = app.default_window_icon() {
         tray_builder = tray_builder.icon(icon.clone());
     } else {
         log(

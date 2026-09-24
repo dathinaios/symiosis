@@ -12,6 +12,10 @@ date, open a fresh `[Unreleased]` section above it, bump `version` in
 
 ## [Unreleased]
 
+### Changed
+
+- On macOS, the menu bar icon is monochrome and adapts to light and dark menu bars.
+
 ## [0.4.1] - 2026-09-24
 
 ### Changed
