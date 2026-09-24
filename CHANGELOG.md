@@ -12,6 +12,8 @@ date, open a fresh `[Unreleased]` section above it, bump `version` in
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-24
+
 ### Changed
 
 - On macOS, the menu bar icon is monochrome and adapts to light and dark menu bars.
@@ -88,6 +90,7 @@ date, open a fresh `[Unreleased]` section above it, bump `version` in
 Released before this changelog was introduced. See the
 [GitHub releases](https://github.com/dathinaios/symiosis/releases) for those versions.
 
-[Unreleased]: https://github.com/dathinaios/symiosis/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/dathinaios/symiosis/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/dathinaios/symiosis/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/dathinaios/symiosis/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/dathinaios/symiosis/compare/v0.3.7...v0.4.0
