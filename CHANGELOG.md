@@ -12,6 +12,8 @@ date, open a fresh `[Unreleased]` section above it, bump `version` in
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-24
+
 ### Changed
 
 - A save that reaches disk but cannot update the search index shows a warning
@@ -82,5 +84,6 @@ date, open a fresh `[Unreleased]` section above it, bump `version` in
 Released before this changelog was introduced. See the
 [GitHub releases](https://github.com/dathinaios/symiosis/releases) for those versions.
 
-[Unreleased]: https://github.com/dathinaios/symiosis/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/dathinaios/symiosis/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/dathinaios/symiosis/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/dathinaios/symiosis/compare/v0.3.7...v0.4.0
