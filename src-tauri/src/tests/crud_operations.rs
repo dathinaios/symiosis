@@ -650,6 +650,13 @@ mod serial_tests {
             "Permission error reported as an external edit: {}",
             error
         );
+        if cfg!(target_os = "macos") {
+            assert!(
+                error.contains("Privacy & Security"),
+                "Should say where to grant access: {}",
+                error
+            );
+        }
     }
 
     #[test]

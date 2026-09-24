@@ -181,7 +181,13 @@ pub fn save_note_with_content_check(
                 Some(&e.to_string()),
             );
             create_save_failure_backup(&notes_dir, &note_path, content);
-            e.to_string()
+            match e {
+                AppError::FilePermission(_) if cfg!(target_os = "macos") => format!(
+                    "{}. Check System Settings › Privacy & Security › Files and Folders.",
+                    e
+                ),
+                _ => e.to_string(),
+            }
         })?;
 
     let index_warning = update_index_after_save(&note_path, content, note_name, &app_state)

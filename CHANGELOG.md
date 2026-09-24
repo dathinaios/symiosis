@@ -16,6 +16,7 @@ date, open a fresh `[Unreleased]` section above it, bump `version` in
 
 - A save that reaches disk but cannot update the search index shows a warning
   that search may be out of date.
+- A save blocked by macOS privacy settings says where to grant access.
 
 ### Fixed
 
